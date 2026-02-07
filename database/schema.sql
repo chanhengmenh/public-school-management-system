@@ -23,7 +23,8 @@ DROP TYPE IF EXISTS attendance_status CASCADE;
 CREATE TYPE attendance_status AS ENUM (
   'present',
   'absent',
-  'late'
+  'late',
+  'permission'
 );
 
 DROP TYPE IF EXISTS visibility_scope CASCADE;
@@ -294,6 +295,67 @@ CREATE TABLE announcements (
 
 CREATE INDEX idx_announcements_author ON announcements(author_id);
 CREATE INDEX idx_announcements_created ON announcements(created_at DESC);
+
+-- ============================================
+-- 10A. MESSAGES
+-- ============================================
+
+CREATE TABLE message_threads (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  subject TEXT NOT NULL,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE message_thread_members (
+  thread_id UUID REFERENCES message_threads(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (thread_id, user_id)
+);
+
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  thread_id UUID REFERENCES message_threads(id) ON DELETE CASCADE,
+  sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_message_threads_created_by ON message_threads(created_by);
+CREATE INDEX idx_message_thread_members_user ON message_thread_members(user_id);
+CREATE INDEX idx_messages_thread ON messages(thread_id);
+
+-- ============================================
+-- 10B. COLLABORATIONS
+-- ============================================
+
+CREATE TABLE collaboration_spaces (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  description TEXT,
+  owner_id UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE collaboration_members (
+  space_id UUID REFERENCES collaboration_spaces(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (space_id, user_id)
+);
+
+CREATE TABLE collaboration_posts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  space_id UUID REFERENCES collaboration_spaces(id) ON DELETE CASCADE,
+  author_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_collaboration_spaces_owner ON collaboration_spaces(owner_id);
+CREATE INDEX idx_collaboration_members_user ON collaboration_members(user_id);
+CREATE INDEX idx_collaboration_posts_space ON collaboration_posts(space_id);
 
 -- ============================================
 -- 11. ANALYTICS CACHE (Performance Optimization)

@@ -48,7 +48,22 @@ async def health_check():
 
 
 # Include routers
-from routers import auth, users, classes, subjects, assignments, grading, analytics, navigation
+from routers import (
+    auth,
+    users,
+    classes,
+    subjects,
+    assignments,
+    grading,
+    analytics,
+    navigation,
+    announcements,
+    files,
+    messages,
+    collaborations,
+    profile,
+    attendance
+)
 
 # Register routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -59,6 +74,12 @@ app.include_router(assignments.router, prefix="/api/assignments", tags=["Assignm
 app.include_router(grading.router, prefix="/api/grading", tags=["Grading"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(navigation.router, prefix="/api/navigation", tags=["Navigation"])
+app.include_router(announcements.router, prefix="/api/announcements", tags=["Announcements"])
+app.include_router(files.router, prefix="/api/files", tags=["Files"])
+app.include_router(messages.router, prefix="/api/messages", tags=["Messages"])
+app.include_router(collaborations.router, prefix="/api/collaborations", tags=["Collaborations"])
+app.include_router(profile.router, prefix="/api/profile", tags=["Profile"])
+app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance"])
 # app.include_router(submissions.router, prefix="/api/submissions", tags=["Submissions"])
 # app.include_router(grades.router, prefix="/api/grades", tags=["Grades"])
 # app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance"])

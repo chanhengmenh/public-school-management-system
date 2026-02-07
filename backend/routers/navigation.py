@@ -25,57 +25,9 @@ class SidebarResponse(BaseModel):
 
 def build_sidebar(role: UserRole) -> List[SidebarItem]:
     """Return sidebar items for a role"""
-    if role == UserRole.ADMIN:
-        return [
-            SidebarItem(id="dashboard", label="Dashboard"),
-            SidebarItem(id="users", label="Users"),
-            SidebarItem(id="classes", label="Classes"),
-            SidebarItem(id="subjects", label="Subjects"),
-            SidebarItem(id="assignments", label="Assignments"),
-            SidebarItem(id="announcements", label="Announcements"),
-            SidebarItem(id="reports", label="Reports"),
-            SidebarItem(id="system-analytics", label="System Analytics"),
-        ]
-
-    if role == UserRole.HOME_TEACHER:
-        return [
-            SidebarItem(id="dashboard", label="Dashboard"),
-            SidebarItem(id="class-overview", label="Class Overview"),
-            SidebarItem(id="assignments", label="Assignments"),
-            SidebarItem(id="gradebook", label="Gradebook"),
-            SidebarItem(id="class-analytics", label="Class Analytics"),
-            SidebarItem(id="student-ranking", label="Student Ranking"),
-            SidebarItem(id="messages", label="Messages"),
-            SidebarItem(id="files", label="Files"),
-        ]
-
-    if role == UserRole.TEACHER:
-        return [
-            SidebarItem(id="dashboard", label="Dashboard"),
-            SidebarItem(id="courses", label="Courses"),
-            SidebarItem(id="assignments", label="Assignments"),
-            SidebarItem(id="submissions", label="Submissions"),
-            SidebarItem(id="gradebook", label="Gradebook"),
-            SidebarItem(id="messages", label="Messages"),
-            SidebarItem(id="collaborations", label="Collaborations"),
-            SidebarItem(id="files", label="Files"),
-            SidebarItem(id="analytics", label="Analytics"),
-        ]
-
-    if role == UserRole.CLASS_MONITOR:
-        return [
-            SidebarItem(id="dashboard", label="Dashboard"),
-            SidebarItem(id="courses", label="Courses"),
-            SidebarItem(id="assignments", label="Assignments"),
-            SidebarItem(id="attendance", label="Attendance"),
-            SidebarItem(id="messages", label="Messages"),
-            SidebarItem(id="files", label="Files"),
-            SidebarItem(id="profile", label="Profile"),
-        ]
-
     return [
         SidebarItem(id="dashboard", label="Dashboard"),
-        SidebarItem(id="courses", label="Courses"),
+        SidebarItem(id="subjects", label="Subjects"),
         SidebarItem(id="assignments", label="Assignments"),
         SidebarItem(id="grades", label="Grades"),
         SidebarItem(id="messages", label="Messages"),
@@ -83,6 +35,14 @@ def build_sidebar(role: UserRole) -> List[SidebarItem]:
         SidebarItem(id="files", label="Files"),
         SidebarItem(id="analytics", label="Analytics"),
         SidebarItem(id="profile", label="Profile"),
+        SidebarItem(id="classmates", label="Classmates"),
+        SidebarItem(id="teachers", label="Teachers"),
+        SidebarItem(id="attendance", label="Attendance"),
+        SidebarItem(id="users", label="Users"),
+        SidebarItem(id="classes", label="Classes"),
+        SidebarItem(id="announcements", label="Announcements"),
+        SidebarItem(id="reports", label="Reports"),
+        SidebarItem(id="system-analytics", label="System Analytics"),
     ]
 
 

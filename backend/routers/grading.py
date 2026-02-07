@@ -17,15 +17,14 @@ router = APIRouter()
 class GradeSubmission(BaseModel):
     """Grade submission model"""
     submission_id: str
-    points_earned: float
+    score: float
     feedback: Optional[str] = None
 
 
 class GradeResponse(BaseModel):
     """Grade response model"""
-    id: str
     submission_id: str
-    points_earned: float
+    score: float
     feedback: Optional[str]
     graded_by: str
     graded_at: datetime
@@ -42,7 +41,7 @@ async def grade_submission(
     """
     # Check if already graded
     existing = db.execute(
-        text("SELECT id FROM scores WHERE submission_id = :submission_id"),
+        text("SELECT submission_id FROM scores WHERE submission_id = :submission_id"),
         {"submission_id": grade_data.submission_id}
     ).fetchone()
     
@@ -51,16 +50,16 @@ async def grade_submission(
         result = db.execute(
             text("""
             UPDATE scores
-            SET points_earned = :points_earned,
+            SET score = :score,
                 feedback = :feedback,
                 graded_by = :graded_by,
                 graded_at = NOW()
             WHERE submission_id = :submission_id
-            RETURNING id, submission_id, points_earned, feedback, graded_by, graded_at
+            RETURNING submission_id, score, feedback, graded_by, graded_at
             """),
             {
                 "submission_id": grade_data.submission_id,
-                "points_earned": grade_data.points_earned,
+                "score": grade_data.score,
                 "feedback": grade_data.feedback,
                 "graded_by": current_user.user_id
             }
@@ -69,13 +68,13 @@ async def grade_submission(
         # Create new grade
         result = db.execute(
             text("""
-            INSERT INTO scores (submission_id, points_earned, feedback, graded_by)
-            VALUES (:submission_id, :points_earned, :feedback, :graded_by)
-            RETURNING id, submission_id, points_earned, feedback, graded_by, graded_at
+            INSERT INTO scores (submission_id, score, feedback, graded_by)
+            VALUES (:submission_id, :score, :feedback, :graded_by)
+            RETURNING submission_id, score, feedback, graded_by, graded_at
             """),
             {
                 "submission_id": grade_data.submission_id,
-                "points_earned": grade_data.points_earned,
+                "score": grade_data.score,
                 "feedback": grade_data.feedback,
                 "graded_by": current_user.user_id
             }
@@ -86,12 +85,11 @@ async def grade_submission(
     grade = result.fetchone()
     
     return GradeResponse(
-        id=str(grade[0]),
-        submission_id=str(grade[1]),
-        points_earned=grade[2],
-        feedback=grade[3],
-        graded_by=str(grade[4]),
-        graded_at=grade[5]
+        submission_id=str(grade[0]),
+        score=grade[1],
+        feedback=grade[2],
+        graded_by=str(grade[3]),
+        graded_at=grade[4]
     )
 
 
@@ -114,13 +112,13 @@ async def get_student_grades(
     
     grades = db.execute(
         text("""
-        SELECT a.title, a.total_points, s.points_earned, s.feedback,
-               s.graded_at, ts.submitted_at, ts.is_late
-        FROM scores s
-        JOIN text_submissions ts ON s.submission_id = ts.id
-        JOIN assignments a ON ts.assignment_id = a.id
-        WHERE ts.student_id = :student_id AND a.class_id = :class_id
-        ORDER BY s.graded_at DESC
+         SELECT a.title, a.max_score, s.score, s.feedback,
+             s.graded_at, sub.submitted_at, sub.status
+         FROM scores s
+         JOIN assignment_submissions sub ON s.submission_id = sub.id
+         JOIN assignments a ON sub.assignment_id = a.id
+         WHERE sub.student_id = :student_id AND a.class_id = :class_id
+         ORDER BY s.graded_at DESC
         """),
         {"student_id": student_id, "class_id": class_id}
     ).fetchall()
@@ -128,12 +126,12 @@ async def get_student_grades(
     return [
         {
             "assignment_title": g[0],
-            "total_points": g[1],
-            "points_earned": g[2],
+            "max_score": g[1],
+            "score": g[2],
             "feedback": g[3],
             "graded_at": g[4],
             "submitted_at": g[5],
-            "is_late": g[6],
+            "status": g[6],
             "percentage": round((g[2] / g[1]) * 100, 2) if g[1] > 0 else 0
         }
         for g in grades

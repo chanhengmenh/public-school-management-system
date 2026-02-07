@@ -3,11 +3,14 @@ Analytics router - student rankings and performance analytics
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List
 from pydantic import BaseModel
+from datetime import datetime
 
 from database import get_db
 from utils.auth import require_teacher, get_current_user
+from services.behavior_service import BehaviorAnalyticsService
 
 router = APIRouter()
 
@@ -46,15 +49,15 @@ async def get_class_rankings(
     query = """
         WITH student_scores AS (
             SELECT 
-                ts.student_id,
+                sub.student_id,
                 u.full_name,
-                SUM(s.points_earned) as total_points,
-                AVG(s.points_earned / a.total_points * 100) as average_score,
-                COUNT(DISTINCT ts.assignment_id) as total_assignments
-            FROM text_submissions ts
-            JOIN users u ON ts.student_id = u.id
-            JOIN assignments a ON ts.assignment_id = a.id
-            LEFT JOIN scores s ON ts.id = s.submission_id
+                SUM(s.score) as total_points,
+                AVG(s.score / a.max_score * 100) as average_score,
+                COUNT(DISTINCT sub.assignment_id) as total_assignments
+            FROM assignment_submissions sub
+            JOIN users u ON sub.student_id = u.id
+            JOIN assignments a ON sub.assignment_id = a.id
+            LEFT JOIN scores s ON sub.id = s.submission_id
             WHERE a.class_id = :class_id
     """
     
@@ -65,7 +68,7 @@ async def get_class_rankings(
         params["subject_id"] = subject_id
     
     query += """
-            GROUP BY ts.student_id, u.full_name
+            GROUP BY sub.student_id, u.full_name
         )
         SELECT 
             student_id,
@@ -119,14 +122,14 @@ async def get_class_analytics(
         """
         SELECT 
             COUNT(DISTINCT e.student_id) as total_students,
-            AVG(s.points_earned / a.total_points * 100) as average_score,
-            MAX(s.points_earned / a.total_points * 100) as highest_score,
-            MIN(s.points_earned / a.total_points * 100) as lowest_score,
-            COUNT(DISTINCT ts.student_id)::float / NULLIF(COUNT(DISTINCT e.student_id), 0) * 100 as completion_rate
+            AVG(s.score / a.max_score * 100) as average_score,
+            MAX(s.score / a.max_score * 100) as highest_score,
+            MIN(s.score / a.max_score * 100) as lowest_score,
+            COUNT(DISTINCT sub.student_id)::float / NULLIF(COUNT(DISTINCT e.student_id), 0) * 100 as completion_rate
         FROM enrollments e
-        LEFT JOIN text_submissions ts ON e.student_id = ts.student_id
-        LEFT JOIN assignments a ON ts.assignment_id = a.id AND a.class_id = :class_id
-        LEFT JOIN scores s ON ts.id = s.submission_id
+        LEFT JOIN assignment_submissions sub ON e.student_id = sub.student_id
+        LEFT JOIN assignments a ON sub.assignment_id = a.id AND a.class_id = :class_id
+        LEFT JOIN scores s ON sub.id = s.submission_id
         WHERE e.class_id = :class_id
         """,
         {"class_id": class_id}
@@ -161,34 +164,53 @@ async def get_student_behavior_analysis(
         )
     
     query = """
-        SELECT 
-            AVG(ts.typing_speed_wpm) as avg_typing_speed,
-            AVG(ts.paste_ratio) as avg_paste_ratio,
-            AVG(ts.active_time_seconds) as avg_active_time,
-            COUNT(CASE WHEN ts.input_mode = 'typed' THEN 1 END) as typed_count,
-            COUNT(CASE WHEN ts.input_mode = 'pasted' THEN 1 END) as pasted_count,
-            COUNT(CASE WHEN ts.input_mode = 'mixed' THEN 1 END) as mixed_count
-        FROM text_submissions ts
-        JOIN assignments a ON ts.assignment_id = a.id
-        WHERE ts.student_id = :student_id
+        SELECT bl.event_type, bl.payload
+        FROM behavior_logs bl
+        JOIN assignment_submissions sub ON bl.submission_id = sub.id
+        JOIN assignments a ON sub.assignment_id = a.id
+        WHERE sub.student_id = :student_id
     """
-    
+
     params = {"student_id": student_id}
-    
+
     if class_id:
         query += " AND a.class_id = :class_id"
         params["class_id"] = class_id
-    
-    analysis = db.execute(query, params).fetchone()
-    
+
+    rows = db.execute(text(query), params).fetchall()
+
+    behavior_events = []
+    for event_type, payload in rows:
+        payload_data = payload or {}
+        timestamp_value = payload_data.get("timestamp")
+        if isinstance(timestamp_value, str):
+            try:
+                timestamp = datetime.fromisoformat(timestamp_value)
+            except ValueError:
+                timestamp = datetime.utcnow()
+        elif isinstance(timestamp_value, datetime):
+            timestamp = timestamp_value
+        else:
+            timestamp = datetime.utcnow()
+
+        behavior_events.append(
+            {
+                "event_type": event_type,
+                "timestamp": timestamp,
+                "payload": payload_data
+            }
+        )
+
+    analytics = BehaviorAnalyticsService.analyze_submission_behavior(behavior_events)
+
     return {
         "student_id": student_id,
-        "avg_typing_speed_wpm": round(analysis[0] or 0, 2),
-        "avg_paste_ratio": round(analysis[1] or 0, 2),
-        "avg_active_time_seconds": round(analysis[2] or 0, 2),
+        "avg_typing_speed_wpm": analytics["typing_speed_wpm"],
+        "avg_paste_ratio": analytics["paste_ratio"],
+        "avg_active_time_seconds": analytics["active_time_seconds"],
         "input_mode_distribution": {
-            "typed": analysis[3] or 0,
-            "pasted": analysis[4] or 0,
-            "mixed": analysis[5] or 0
+            "typed": 1 if analytics["input_mode"] == "typed" else 0,
+            "pasted": 1 if analytics["input_mode"] == "pasted" else 0,
+            "mixed": 1 if analytics["input_mode"] == "mixed" else 0
         }
     }

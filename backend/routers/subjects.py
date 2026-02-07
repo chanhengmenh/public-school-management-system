@@ -150,7 +150,7 @@ async def get_class_subjects(
     """
     subjects = db.execute(
         text("""
-        SELECT s.id, s.name, s.code, u.full_name as teacher_name, cs.teacher_id
+        SELECT s.id, s.name, s.code, u.full_name as teacher_name, u.email, cs.teacher_id
         FROM subjects s
         JOIN class_subjects cs ON s.id = cs.subject_id
         JOIN users u ON cs.teacher_id = u.id
@@ -166,7 +166,8 @@ async def get_class_subjects(
             "name": s[1],
             "code": s[2],
             "teacher_name": s[3],
-            "teacher_id": str(s[4])
+            "teacher_email": s[4],
+            "teacher_id": str(s[5])
         }
         for s in subjects
     ]
