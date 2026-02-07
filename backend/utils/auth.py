@@ -5,13 +5,13 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from config import get_settings
 from models.user import TokenData, UserRole
 
 settings = get_settings()
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -60,9 +60,24 @@ def decode_access_token(token: str) -> TokenData:
         )
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
-    """Get current authenticated user from token"""
-    token = credentials.credentials
+async def get_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> TokenData:
+    """Get current authenticated user from token header or cookie"""
+    token = None
+
+    if credentials and credentials.scheme.lower() == "bearer":
+        token = credentials.credentials
+    else:
+        token = request.cookies.get("access_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
     return decode_access_token(token)
 
 

@@ -48,7 +48,7 @@ async def health_check():
 
 
 # Include routers
-from routers import auth, users, classes, subjects, assignments, grading
+from routers import auth, users, classes, subjects, assignments, grading, analytics, navigation
 
 # Register routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -57,9 +57,10 @@ app.include_router(classes.router, prefix="/api/classes", tags=["Classes"])
 app.include_router(subjects.router, prefix="/api/subjects", tags=["Subjects"])
 app.include_router(assignments.router, prefix="/api/assignments", tags=["Assignments"])
 app.include_router(grading.router, prefix="/api/grading", tags=["Grading"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(navigation.router, prefix="/api/navigation", tags=["Navigation"])
 # app.include_router(submissions.router, prefix="/api/submissions", tags=["Submissions"])
 # app.include_router(grades.router, prefix="/api/grades", tags=["Grades"])
-# app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 # app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance"])
 # app.include_router(resources.router, prefix="/api/resources", tags=["Resources"])
 

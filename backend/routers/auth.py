@@ -1,7 +1,7 @@
 """
 Authentication router - handles login, registration, and token management
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import timedelta
@@ -72,7 +72,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(credentials: UserLogin, db: Session = Depends(get_db)):
+async def login(credentials: UserLogin, response: Response, db: Session = Depends(get_db)):
     """
     Login and receive JWT token
     """
@@ -112,6 +112,14 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes)
     )
     
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=settings.access_token_expire_minutes * 60
+    )
+
     return Token(access_token=access_token)
 
 
@@ -143,8 +151,9 @@ async def get_current_user_info(current_user = Depends(get_current_user), db: Se
 
 
 @router.post("/logout")
-async def logout():
+async def logout(response: Response):
     """
     Logout (client should discard token)
     """
+    response.delete_cookie("access_token")
     return {"message": "Successfully logged out"}
