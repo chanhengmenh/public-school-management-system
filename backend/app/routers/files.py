@@ -1,5 +1,5 @@
-import os
-from fastapi import APIRouter, Depends, UploadFile, File
+from pathlib import Path
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
@@ -10,6 +10,16 @@ from app.core.exceptions import NotFoundError
 
 router = APIRouter(prefix="/files", tags=["files"])
 
+ALLOWED_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
 
 @router.post("/upload", response_model=dict)
 async def upload_file(
@@ -18,6 +28,9 @@ async def upload_file(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="File type not allowed")
+
     from app.storage.local import LocalFilesystemBackend
     backend = LocalFilesystemBackend()
     content = await file.read()
@@ -37,7 +50,10 @@ async def upload_file(
 
 @router.get("/{file_path:path}")
 def serve_file(file_path: str, _: User = Depends(get_current_user)):
-    full_path = os.path.join(settings.LOCAL_UPLOAD_DIR, file_path)
-    if not os.path.exists(full_path):
+    base = Path(settings.LOCAL_UPLOAD_DIR).resolve()
+    full_path = (base / file_path).resolve()
+    if not str(full_path).startswith(str(base)):
         raise NotFoundError("File not found")
-    return FileResponse(full_path)
+    if not full_path.exists():
+        raise NotFoundError("File not found")
+    return FileResponse(str(full_path))

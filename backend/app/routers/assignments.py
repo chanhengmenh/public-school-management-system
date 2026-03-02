@@ -11,18 +11,21 @@ router = APIRouter(prefix="/assignments", tags=["assignments"])
 
 
 @router.get("/", response_model=list[AssignmentRead])
-def list_assignments(class_subject_id: int | None = None, db: Session = Depends(get_db),
-                      current_user: User = Depends(get_current_user)):
+def list_assignments(class_subject_id: int | None = None, class_id: int | None = None,
+                      db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.models.class_subject import ClassSubject
     q = db.query(Assignment)
     if class_subject_id:
         q = q.filter(Assignment.class_subject_id == class_subject_id)
-    if current_user.role in (UserRole.student, UserRole.class_monitor):
+    if class_id:
+        q = q.join(ClassSubject).filter(ClassSubject.class_id == class_id)
+    if current_user.role == UserRole.student:
         q = q.filter(Assignment.status == AssignmentStatus.published)
     return q.all()
 
 
 @router.post("/", response_model=AssignmentRead,
-             dependencies=[Depends(require_roles(UserRole.teacher, UserRole.home_teacher, UserRole.admin))])
+             dependencies=[Depends(require_roles(UserRole.teacher, UserRole.admin))])
 def create_assignment(data: AssignmentCreate, db: Session = Depends(get_db),
                        current_user: User = Depends(get_current_user)):
     obj = Assignment(**data.model_dump(), publisher_id=current_user.id)
@@ -42,7 +45,7 @@ def get_assignment(assignment_id: int, db: Session = Depends(get_db),
 
 
 @router.put("/{assignment_id}", response_model=AssignmentRead,
-            dependencies=[Depends(require_roles(UserRole.teacher, UserRole.home_teacher, UserRole.admin))])
+            dependencies=[Depends(require_roles(UserRole.teacher, UserRole.admin))])
 def update_assignment(assignment_id: int, data: AssignmentUpdate, db: Session = Depends(get_db)):
     obj = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not obj:
@@ -55,7 +58,7 @@ def update_assignment(assignment_id: int, data: AssignmentUpdate, db: Session = 
 
 
 @router.post("/{assignment_id}/publish", response_model=AssignmentRead,
-             dependencies=[Depends(require_roles(UserRole.teacher, UserRole.home_teacher, UserRole.admin))])
+             dependencies=[Depends(require_roles(UserRole.teacher, UserRole.admin))])
 def publish_assignment(assignment_id: int, db: Session = Depends(get_db)):
     obj = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not obj:
@@ -67,7 +70,7 @@ def publish_assignment(assignment_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{assignment_id}",
-               dependencies=[Depends(require_roles(UserRole.teacher, UserRole.home_teacher, UserRole.admin))])
+               dependencies=[Depends(require_roles(UserRole.teacher, UserRole.admin))])
 def delete_assignment(assignment_id: int, db: Session = Depends(get_db)):
     obj = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not obj:

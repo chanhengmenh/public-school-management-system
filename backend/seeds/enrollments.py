@@ -4,30 +4,35 @@ from sqlalchemy.orm import Session
 
 
 def seed(db: Session, classes: dict, users: dict) -> None:
-    class_10a = classes.get("Class 10A")
-    class_10b = classes.get("Class 10B")
-    class_11a = classes.get("Class 11A")
-
-    students = [u for u in users.values() if u.role == UserRole.student]
-    monitor = users.get("monitor01@iams.edu")
-
-    # Enroll first 5 students in 10A, next 5 in 10B
-    for i, student in enumerate(students):
-        cls = class_10a if i < 5 else class_10b
-        existing = db.query(Enrollment).filter(
-            Enrollment.student_id == student.id,
-            Enrollment.class_id == cls.id
-        ).first()
-        if not existing:
-            db.add(Enrollment(student_id=student.id, class_id=cls.id))
-
-    # Enroll monitor in 10A
-    if monitor and class_10a:
-        existing = db.query(Enrollment).filter(
-            Enrollment.student_id == monitor.id,
-            Enrollment.class_id == class_10a.id
-        ).first()
-        if not existing:
-            db.add(Enrollment(student_id=monitor.id, class_id=class_10a.id))
-
+    # Get all students sorted by email for consistent assignment
+    students = sorted(
+        [u for u in users.values() if u.role == UserRole.student],
+        key=lambda u: u.email
+    )
+    
+    # Get all classes sorted by name
+    all_classes = sorted(classes.values(), key=lambda c: c.name)
+    
+    # Enroll 25 students per class
+    students_per_class = 25
+    
+    for class_idx, cls in enumerate(all_classes):
+        if cls is None:
+            continue
+        
+        # Assign students to this class
+        start_idx = class_idx * students_per_class
+        end_idx = start_idx + students_per_class
+        
+        for student in students[start_idx:end_idx]:
+            if student is None:
+                continue
+            
+            existing = db.query(Enrollment).filter(
+                Enrollment.student_id == student.id,
+                Enrollment.class_id == cls.id
+            ).first()
+            if not existing:
+                db.add(Enrollment(student_id=student.id, class_id=cls.id))
+    
     db.commit()

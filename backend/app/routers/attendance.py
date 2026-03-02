@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
-from app.models.user import UserRole, User
+from app.models.user import User, UserRole
 from app.models.attendance import Attendance
 from app.schemas.attendance import AttendanceBatchCreate, AttendanceRead
-from app.core.permissions import require_roles
+from app.core.permissions import require_class_monitor
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 
 @router.post("/batch", response_model=dict,
-             dependencies=[Depends(require_roles(UserRole.class_monitor, UserRole.admin))])
+             dependencies=[Depends(require_class_monitor())])
 def batch_create_attendance(data: AttendanceBatchCreate, db: Session = Depends(get_db),
                               current_user: User = Depends(get_current_user)):
     records = []
@@ -42,12 +42,15 @@ def batch_create_attendance(data: AttendanceBatchCreate, db: Session = Depends(g
 @router.get("/", response_model=list[AttendanceRead])
 def list_attendance(class_id: int | None = None, student_id: int | None = None,
                      date: str | None = None, db: Session = Depends(get_db),
-                     _: User = Depends(get_current_user)):
+                     current_user: User = Depends(get_current_user)):
     q = db.query(Attendance)
+    if current_user.role == UserRole.student:
+        q = q.filter(Attendance.student_id == current_user.id)
+    else:
+        if student_id:
+            q = q.filter(Attendance.student_id == student_id)
     if class_id:
         q = q.filter(Attendance.class_id == class_id)
-    if student_id:
-        q = q.filter(Attendance.student_id == student_id)
     if date:
         from datetime import date as date_type
         q = q.filter(Attendance.date == date_type.fromisoformat(date))

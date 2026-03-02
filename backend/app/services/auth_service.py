@@ -10,8 +10,14 @@ def login(db: Session, email: str, password: str) -> TokenResponse:
     if not user or not verify_password(password, user.hashed_password):
         raise UnauthorizedError("Invalid email or password")
 
-    access_token = create_access_token({"sub": str(user.id), "role": user.role.value})
-    refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role.value})
+    token_claims = {
+        "sub": str(user.id),
+        "role": user.role.value,
+        "is_home_teacher": user.is_home_teacher,
+        "is_class_monitor": user.is_class_monitor,
+    }
+    access_token = create_access_token(token_claims)
+    refresh_token = create_refresh_token(token_claims)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
@@ -27,4 +33,9 @@ def refresh_access_token(db: Session, refresh_token: str) -> str:
     if not user:
         raise UnauthorizedError("User not found")
 
-    return create_access_token({"sub": str(user.id), "role": user.role.value})
+    return create_access_token({
+        "sub": str(user.id),
+        "role": user.role.value,
+        "is_home_teacher": user.is_home_teacher,
+        "is_class_monitor": user.is_class_monitor,
+    })

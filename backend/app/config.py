@@ -3,8 +3,8 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql://iams_user:iams_pass@localhost:5432/iams_db"
-    JWT_SECRET_KEY: str = "change-me-in-production-256-bit-secret"
+    DATABASE_URL: str = "postgresql://postgres:abc123@localhost:5432/iams_db"
+    JWT_SECRET_KEY: str = "change-this-one-in-production-256-bit-secret"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
