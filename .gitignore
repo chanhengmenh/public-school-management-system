@@ -38,3 +38,9 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Claude
+claude_logs/
+ tmpclaude-*/
+
+sidebars.txt/
