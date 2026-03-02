@@ -1,0 +1,1 @@
+export default function TeacherSchedulePage() { return <div>Teacher Schedule</div> }

@@ -1,0 +1,1 @@
+export default function AdminAcademicPage() { return <div>Admin Academic</div> }
