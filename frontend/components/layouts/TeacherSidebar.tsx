@@ -11,22 +11,15 @@ import {
     Settings,
     LogOut,
     GraduationCap,
-    Menu,
-    ClipboardCheck
+    Menu
 } from 'lucide-react';
+import { useNotifications } from '@/contexts/NotificationContext';
 
-export default function MainSidebar() {
+export default function TeacherSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [isMonitor, setIsMonitor] = useState(false);
-
-    // Run on mount to check if user has class monitor privileges
-    if (typeof window !== 'undefined' && !isMonitor) {
-        if (document.cookie.includes('mock_sub_role=monitor')) {
-            setIsMonitor(true);
-        }
-    }
+    const { unreadCount } = useNotifications();
 
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to log out?")) {
@@ -38,18 +31,14 @@ export default function MainSidebar() {
     type NavLink = { name: string; href: string; icon: React.ElementType; badge?: number };
 
     const mainMenuLinks: NavLink[] = [
-        { name: 'Dashboard', href: '/student', icon: LayoutDashboard },
-        { name: 'Classes', href: '/student/classes', icon: BookOpen },
-        { name: 'Schedule', href: '/student/schedule', icon: Calendar },
-        { name: 'Notifications', href: '/student/notifications', icon: Bell, badge: 4 },
+        { name: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
+        { name: 'Classes', href: '/teacher/classes', icon: BookOpen },
+        { name: 'Schedule', href: '/teacher/schedule', icon: Calendar },
+        { name: 'Notifications', href: '/teacher/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     ];
 
-    if (isMonitor) {
-        mainMenuLinks.push({ name: 'Draft Attendance', href: '/student/attendance', icon: ClipboardCheck });
-    }
-
     const accountLinks: NavLink[] = [
-        { name: 'Settings', href: '/student/settings', icon: Settings },
+        { name: 'Settings', href: '/teacher/settings', icon: Settings },
     ];
 
     const renderNavLinks = (links: NavLink[]) => {
@@ -64,12 +53,12 @@ export default function MainSidebar() {
                     title={isCollapsed ? item.name : undefined}
                     className={`flex items-center rounded-lg pr-4 py-2 my-1 transition-colors ${isCollapsed ? 'justify-center pl-0 border-l-0 mx-2' : 'pl-4 mx-2'
                         } ${isActive
-                            ? 'bg-[#23252d] text-orange-500 border-l-4 border-orange-500'
+                            ? 'bg-[#23252d] text-blue-500 border-l-4 border-blue-500'
                             : 'text-slate-400 hover:bg-slate-800/80 hover:text-white border-l-4 border-transparent'
                         }`}
                 >
                     <div className="relative">
-                        <div className={`p-2 rounded-lg flex items-center justify-center shrink-0 ${isActive ? 'bg-orange-500/10 text-orange-500' : 'bg-slate-800/60 text-slate-400 group-hover:text-white'
+                        <div className={`p-2 rounded-lg flex items-center justify-center shrink-0 ${isActive ? 'bg-blue-500/10 text-blue-500' : 'bg-slate-800/60 text-slate-400 group-hover:text-white'
                             }`}>
                             <Icon className="h-5 w-5" />
                         </div>
@@ -83,7 +72,7 @@ export default function MainSidebar() {
 
                     {!isCollapsed && (
                         <>
-                            <span className={`ml-3 text-sm font-medium whitespace-nowrap ${isActive ? 'text-orange-500' : ''}`}>{item.name}</span>
+                            <span className={`ml-3 text-sm font-medium whitespace-nowrap ${isActive ? 'text-blue-500' : ''}`}>{item.name}</span>
                             {item.badge && (
                                 <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
                                     {item.badge}
@@ -106,11 +95,16 @@ export default function MainSidebar() {
                 {!isCollapsed && (
                     <div className="flex items-center">
                         <div className="bg-slate-800/50 p-2 rounded-xl flex items-center justify-center shrink-0">
-                            <GraduationCap className="text-orange-500 h-6 w-6" />
+                            <GraduationCap className="text-blue-500 h-6 w-6" />
                         </div>
-                        <span className="text-white text-xl font-bold font-serif tracking-tight whitespace-nowrap overflow-hidden ml-3">
-                            EduSchool
-                        </span>
+                        <div className="ml-3 flex flex-col min-w-0 overflow-hidden">
+                            <span className="text-white text-xl font-bold font-serif tracking-tight whitespace-nowrap overflow-hidden">
+                                EduSchool
+                            </span>
+                            <span className="text-[10px] text-blue-400 tracking-wider font-sans uppercase">
+                                TEACHER PORTAL
+                            </span>
+                        </div>
                     </div>
                 )}
 
@@ -156,19 +150,19 @@ export default function MainSidebar() {
             <div className={`p-4 border-t border-slate-800 flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
                 {/* Avatar */}
                 <div
-                    className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shrink-0 cursor-pointer"
+                    className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shrink-0 cursor-pointer"
                     onClick={isCollapsed ? handleLogout : undefined}
                     title={isCollapsed ? "Log Out" : undefined}
                 >
-                    <span className="text-white font-bold text-sm">A</span>
+                    <span className="text-white font-bold text-sm">TW</span>
                 </div>
 
                 {/* User Info & Logout Button (Expanded Only) */}
                 {!isCollapsed && (
                     <>
                         <div className="ml-3 flex flex-col min-w-0 overflow-hidden">
-                            <span className="text-sm font-semibold text-white whitespace-nowrap truncate">Alex</span>
-                            <span className="text-xs text-slate-400 whitespace-nowrap truncate">Grade 11 · Science</span>
+                            <span className="text-sm font-semibold text-white whitespace-nowrap truncate">Mr. Tan Wei</span>
+                            <span className="text-xs text-slate-400 whitespace-nowrap truncate">Subject Teacher · Physics</span>
                         </div>
                         <button
                             onClick={handleLogout}

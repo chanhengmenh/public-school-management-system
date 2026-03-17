@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Microscope, Calculator, BookOpen, FlaskConical, Globe, Library } from "lucide-react";
+import PageHeader from '@/components/layouts/PageHeader';
 
 export default function StudentClassesPage() {
     const classes = [
@@ -116,20 +117,10 @@ export default function StudentClassesPage() {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header Section */}
-            <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 lg:px-8 py-6 mb-8">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-3xl font-serif font-bold text-[#0f172a]">
-                            My Classes
-                        </h1>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Term 2 · 6 Active Courses
-                        </p>
-                    </div>
-                    {/* Right side strictly empty */}
-                    <div></div>
-                </div>
-            </header>
+            <PageHeader
+                title="My Classes"
+                subtitle="Term 2 · 6 Active Courses"
+            />
 
             <div className="px-6 lg:px-8 pb-8">
                 {/* Grid Layout */}

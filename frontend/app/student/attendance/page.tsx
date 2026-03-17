@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
+import PageHeader from '@/components/layouts/PageHeader';
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 
@@ -47,21 +48,11 @@ export default function DraftAttendancePage() {
         <div className="min-h-screen bg-slate-50 font-sans">
             <div className="max-w-7xl mx-auto w-full flex flex-col">
                 {/* Sticky Header */}
-                <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Draft Attendance</h1>
-                                <span className="bg-indigo-100/50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-indigo-200/50 flex items-center gap-1.5">
-                                    <ClipboardCheck className="w-3.5 h-3.5" />
-                                    Monitor Task
-                                </span>
-                            </div>
-                            <p className="text-sm text-slate-500 mt-1">Submit daily attendance to your teachers.</p>
-                        </div>
-                        <div></div> {/* Strictly empty right side */}
-                    </div>
-                </header>
+                <PageHeader
+                    title="Draft Attendance"
+                    badge="Monitor Task"
+                    subtitle="Submit daily attendance to your teachers."
+                />
 
                 {/* Content Wrapper */}
                 <div className="px-6 lg:px-8 pb-12 w-full max-w-4xl mt-8">
@@ -135,8 +126,8 @@ export default function DraftAttendancePage() {
                                         <button
                                             onClick={() => handleStatusChange(student.id, 'Present')}
                                             className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${student.status === 'Present'
-                                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm'
-                                                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm'
+                                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                                                 }`}
                                         >
                                             Present
@@ -144,8 +135,8 @@ export default function DraftAttendancePage() {
                                         <button
                                             onClick={() => handleStatusChange(student.id, 'Absent')}
                                             className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${student.status === 'Absent'
-                                                    ? 'bg-red-50 border-red-200 text-red-700 shadow-sm'
-                                                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                                ? 'bg-red-50 border-red-200 text-red-700 shadow-sm'
+                                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                                                 }`}
                                         >
                                             Absent
@@ -153,8 +144,8 @@ export default function DraftAttendancePage() {
                                         <button
                                             onClick={() => handleStatusChange(student.id, 'Late')}
                                             className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${student.status === 'Late'
-                                                    ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
-                                                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                                ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
+                                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                                                 }`}
                                         >
                                             Late

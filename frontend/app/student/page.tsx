@@ -13,11 +13,13 @@ import {
     Check,
     Megaphone
 } from 'lucide-react';
+import PageHeader from '@/components/layouts/PageHeader';
 
 export default function StudentDashboardPage() {
     const [isMonitor, setIsMonitor] = useState(false);
 
     useEffect(() => {
+        // Safe check for document to avoid SSR issues
         if (typeof document !== 'undefined') {
             setIsMonitor(document.cookie.includes('mock_sub_role=monitor'));
         }
@@ -121,22 +123,11 @@ export default function StudentDashboardPage() {
             <div className="max-w-7xl mx-auto w-full flex flex-col">
 
                 {/* 1. Page Header */}
-                <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Dashboard</h1>
-                                {isMonitor && (
-                                    <span className="bg-blue-100/50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-blue-200/50">
-                                        Class Monitor
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-sm text-slate-500 mt-1">Monday, 2 June 2025</p>
-                        </div>
-                        <div></div>
-                    </div>
-                </header>
+                <PageHeader
+                    title="Dashboard"
+                    badge={isMonitor ? "Class Monitor" : undefined}
+                    subtitle="Monday, 2 June 2025"
+                />
 
                 <div className="px-6 lg:px-8 pb-12">
 
@@ -149,7 +140,7 @@ export default function StudentDashboardPage() {
                                     <stat.icon className="w-6 h-6 stroke-[2.5]" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-2xl font-bold font-sans text-slate-900 leading-none">{stat.value}</span>
+                                    <span className="text-xl font-bold font-serif text-slate-900 mt-2 block break-words">&apos;Macbeth&apos; Character Analysis Essay</span>
                                     <span className="text-sm text-slate-500 mt-1.5">{stat.label}</span>
                                     <span className={`text-xs font-medium mt-2 ${stat.trendColor}`}>{stat.trend}</span>
                                 </div>

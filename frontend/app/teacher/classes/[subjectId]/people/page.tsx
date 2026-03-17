@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { Users, Mail, MoreVertical } from 'lucide-react';
+import { Users, Mail } from 'lucide-react';
 
 // Dummy Student Data
 interface Student {
@@ -11,24 +11,23 @@ interface Student {
     avatar: string;
     email: string;
     studentId: string;
-    status: 'Active' | 'Inactive';
 }
 
 // TODO: Replace with API call — e.g. const students = await fetchStudentsByClass(subjectId);
 const STUDENTS_DATA: Student[] = [
-    { id: 's1', name: 'Alex Johnson', avatar: 'AJ', email: 'alex.j@school.edu', studentId: 'STU-2025-001', status: 'Active' },
-    { id: 's2', name: 'Maria Garcia', avatar: 'MG', email: 'maria.g@school.edu', studentId: 'STU-2025-002', status: 'Active' },
-    { id: 's3', name: 'James Smith', avatar: 'JS', email: 'james.s@school.edu', studentId: 'STU-2025-003', status: 'Active' },
-    { id: 's4', name: 'Linda Choo', avatar: 'LC', email: 'linda.c@school.edu', studentId: 'STU-2025-004', status: 'Active' },
-    { id: 's5', name: 'Robert Fox', avatar: 'RF', email: 'robert.f@school.edu', studentId: 'STU-2025-005', status: 'Active' },
-    { id: 's6', name: 'Emily Davis', avatar: 'ED', email: 'emily.d@school.edu', studentId: 'STU-2025-006', status: 'Active' },
-    { id: 's7', name: 'Michael Brown', avatar: 'MB', email: 'michael.b@school.edu', studentId: 'STU-2025-007', status: 'Active' },
-    { id: 's8', name: 'Sarah Wilson', avatar: 'SW', email: 'sarah.w@school.edu', studentId: 'STU-2025-008', status: 'Active' },
-    { id: 's9', name: 'Daniel Lee', avatar: 'DL', email: 'daniel.l@school.edu', studentId: 'STU-2025-009', status: 'Inactive' },
-    { id: 's10', name: 'Jessica Taylor', avatar: 'JT', email: 'jessica.t@school.edu', studentId: 'STU-2025-010', status: 'Active' },
+    { id: 's1', name: 'Alex Johnson', avatar: 'AJ', email: 'alex.j@school.edu', studentId: 'STU-2025-001' },
+    { id: 's2', name: 'Maria Garcia', avatar: 'MG', email: 'maria.g@school.edu', studentId: 'STU-2025-002' },
+    { id: 's3', name: 'James Smith', avatar: 'JS', email: 'james.s@school.edu', studentId: 'STU-2025-003' },
+    { id: 's4', name: 'Linda Choo', avatar: 'LC', email: 'linda.c@school.edu', studentId: 'STU-2025-004' },
+    { id: 's5', name: 'Robert Fox', avatar: 'RF', email: 'robert.f@school.edu', studentId: 'STU-2025-005' },
+    { id: 's6', name: 'Emily Davis', avatar: 'ED', email: 'emily.d@school.edu', studentId: 'STU-2025-006' },
+    { id: 's7', name: 'Michael Brown', avatar: 'MB', email: 'michael.b@school.edu', studentId: 'STU-2025-007' },
+    { id: 's8', name: 'Sarah Wilson', avatar: 'SW', email: 'sarah.w@school.edu', studentId: 'STU-2025-008' },
+    { id: 's9', name: 'Daniel Lee', avatar: 'DL', email: 'daniel.l@school.edu', studentId: 'STU-2025-009' },
+    { id: 's10', name: 'Jessica Taylor', avatar: 'JT', email: 'jessica.t@school.edu', studentId: 'STU-2025-010' },
 ];
 
-export default function TeacherStudentsPage() {
+export default function TeacherPeoplePage() {
     const params = useParams();
     const subjectId = (params?.subjectId as string) || 'class-1';
 
@@ -41,11 +40,11 @@ export default function TeacherStudentsPage() {
             <div className="flex items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
                 <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-slate-500" />
-                    <span className="text-sm font-bold text-slate-700">{students.length} Students Enrolled</span>
+                    <span className="text-sm font-bold text-slate-700">{students.length} People Enrolled</span>
                 </div>
             </div>
 
-            {/* Students Table */}
+            {/* People Table */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -54,8 +53,6 @@ export default function TeacherStudentsPage() {
                                 <th className="p-4 pl-6">Student</th>
                                 <th className="p-4">Student ID</th>
                                 <th className="p-4">Email</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 pr-6 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -78,19 +75,6 @@ export default function TeacherStudentsPage() {
                                             {student.email}
                                         </div>
                                     </td>
-                                    <td className="p-4">
-                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border ${student.status === 'Active'
-                                            ? 'bg-green-50 text-green-700 border-green-200'
-                                            : 'bg-slate-100 text-slate-500 border-slate-200'
-                                            }`}>
-                                            {student.status}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 pr-6 text-right">
-                                        <button className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-                                            <MoreVertical className="w-4 h-4" />
-                                        </button>
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -100,7 +84,7 @@ export default function TeacherStudentsPage() {
                 {students.length === 0 && (
                     <div className="py-12 flex flex-col items-center justify-center text-center">
                         <Users className="w-12 h-12 text-slate-300 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-900 mb-1">No Students Found</h3>
+                        <h3 className="text-lg font-bold text-slate-900 mb-1">No People Found</h3>
                         <p className="text-sm text-slate-500">No students enrolled in this class.</p>
                     </div>
                 )}

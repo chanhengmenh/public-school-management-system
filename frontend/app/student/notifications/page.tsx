@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Megaphone, BookOpen, AlertCircle, Award, Bell } from 'lucide-react';
+import PageHeader from '@/components/layouts/PageHeader';
 
 type IconType = 'announcement' | 'assignment' | 'alert' | 'grade' | 'general';
 
@@ -107,17 +108,10 @@ export default function NotificationsPage() {
         <div className="min-h-screen bg-slate-50 font-sans">
             <div className="max-w-7xl mx-auto w-full flex flex-col">
                 {/* Sticky Header */}
-                <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Notifications</h1>
-                            <p className="text-sm text-slate-500 mt-1">
-                                You have {unreadCount} unread message{unreadCount !== 1 ? 's' : ''}
-                            </p>
-                        </div>
-                        <div></div> {/* Strictly empty right side */}
-                    </div>
-                </header>
+                <PageHeader
+                    title="Notifications"
+                    subtitle={`You have ${unreadCount} unread message${unreadCount !== 1 ? 's' : ''}`}
+                />
 
                 {/* Content Wrapper */}
                 <div className="px-6 lg:px-8 pb-12 w-full max-w-4xl">
@@ -144,8 +138,8 @@ export default function NotificationsPage() {
                                 role="button"
                                 tabIndex={0}
                                 className={`w-full text-left p-4 rounded-xl transition-all duration-200 flex items-start gap-4 ${notif.isRead
-                                        ? 'bg-transparent border border-slate-200/60 opacity-80 hover:bg-slate-100/50'
-                                        : 'bg-white border border-slate-200 shadow-sm hover:border-slate-300 cursor-pointer'
+                                    ? 'bg-transparent border border-slate-200/60 opacity-80 hover:bg-slate-100/50'
+                                    : 'bg-white border border-slate-200 shadow-sm hover:border-slate-300 cursor-pointer'
                                     }`}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {

@@ -19,7 +19,7 @@ export default async function SubjectLayout({
         .join(" ");
 
     return (
-        <div className="p-6">
+        <div className="min-h-screen bg-slate-50 pt-8 pb-12 p-6 lg:px-8 max-w-7xl mx-auto w-full flex flex-col">
             {/* Navigation */}
             <div className="flex items-center gap-4 mb-6">
                 <Link

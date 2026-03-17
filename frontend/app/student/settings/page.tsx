@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { User, Shield, Bell, Camera } from 'lucide-react';
+import PageHeader from '@/components/layouts/PageHeader';
 
 type Tab = 'profile' | 'security' | 'notifications';
 
@@ -204,15 +205,10 @@ export default function SettingsPage() {
         <div className="min-h-screen bg-slate-50 font-sans">
             <div className="max-w-7xl mx-auto w-full flex flex-col">
                 {/* Sticky Header */}
-                <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Settings</h1>
-                            <p className="text-sm text-slate-500 mt-1">Manage your account and preferences</p>
-                        </div>
-                        <div></div> {/* Strictly empty right side */}
-                    </div>
-                </header>
+                <PageHeader
+                    title="Settings"
+                    subtitle="Manage your account and preferences"
+                />
 
                 {/* Content Wrapper */}
                 <div className="px-6 lg:px-8 pb-12 w-full max-w-5xl mt-8">

@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Printer, MapPin, Clock } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Calendar, ChevronDown, Clock, MapPin } from 'lucide-react';
+import PageHeader from '@/components/layouts/PageHeader';
 
 export default function StudentSchedulePage() {
     const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
     const [selectedDay, setSelectedDay] = useState<string>('Monday');
     const [currentDate, setCurrentDate] = useState<string>('');
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
@@ -94,33 +96,30 @@ export default function StudentSchedulePage() {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Schedule</h1>
-                        <p className="text-sm text-slate-500 mt-1">Term 2 · Weekly Timetable</p>
-                    </div>
-                    <div></div>
-                </div>
-            </header>
+            <PageHeader
+                title="Schedule"
+                subtitle="Term 2 · Weekly Timetable"
+            />
 
             <div className="px-6 lg:px-8 pb-8 pt-6">
                 {/* Top Action Bar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     {/* Interactive Calendar Button */}
-                    <div className="relative inline-block">
-                        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors pointer-events-none">
-                            <Calendar className="w-4 h-4 text-slate-500 shrink-0" />
-                            <span className="whitespace-nowrap">{currentDate ? new Date(currentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "June 2 - June 6, 2025"}</span>
-                            <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
-                        </div>
+                    <button
+                        onClick={() => dateInputRef.current?.showPicker?.()}
+                        className="relative flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                        <Calendar className="w-4 h-4 text-slate-500 shrink-0" />
+                        <span className="whitespace-nowrap">{currentDate ? new Date(currentDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "June 2 - June 6, 2025"}</span>
+                        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
                         <input
+                            ref={dateInputRef}
                             type="date"
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
                             value={currentDate}
                             onChange={(e) => setCurrentDate(e.target.value)}
                         />
-                    </div>
+                    </button>
 
                     <div className="flex flex-wrap items-center gap-3">
                         {/* View Toggles */}
