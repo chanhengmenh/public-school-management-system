@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.dependencies import get_db, get_current_user
 from app.models.user import UserRole, User
 from app.schemas.enrollment import EnrollmentCreate, EnrollmentRead
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/enrollments", tags=["enrollments"])
 @router.get("/", response_model=list[EnrollmentRead])
 def list_enrollments(class_id: int | None = None, student_id: int | None = None,
                       db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    q = db.query(Enrollment)
+    q = db.query(Enrollment).options(joinedload(Enrollment.class_))
     if class_id:
         q = q.filter(Enrollment.class_id == class_id)
     if student_id:

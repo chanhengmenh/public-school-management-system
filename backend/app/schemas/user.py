@@ -9,6 +9,8 @@ class UserCreate(BaseModel):
     full_name: str
     password: str
     role: UserRole
+    is_home_teacher: bool = False
+    is_class_monitor: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -16,6 +18,8 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    is_home_teacher: Optional[bool] = None
+    is_class_monitor: Optional[bool] = None
     password: Optional[str] = None
 
 
@@ -25,6 +29,8 @@ class UserRead(BaseModel):
     full_name: str
     role: UserRole
     is_active: bool
+    is_home_teacher: bool
+    is_class_monitor: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

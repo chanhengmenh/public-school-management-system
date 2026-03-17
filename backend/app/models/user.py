@@ -8,9 +8,7 @@ from app.database import Base
 class UserRole(str, enum.Enum):
     admin = "admin"
     teacher = "teacher"
-    home_teacher = "home_teacher"
     student = "student"
-    class_monitor = "class_monitor"
 
 
 class User(Base):
@@ -22,6 +20,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
     is_active = Column(Boolean, default=True)
+    is_home_teacher = Column(Boolean, nullable=False, default=False, server_default='false')
+    is_class_monitor = Column(Boolean, nullable=False, default=False, server_default='false')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

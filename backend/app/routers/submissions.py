@@ -13,7 +13,7 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
 
 
 @router.post("/", response_model=SubmissionRead,
-             dependencies=[Depends(require_roles(UserRole.student, UserRole.class_monitor))])
+             dependencies=[Depends(require_roles(UserRole.student))])
 def create_submission(data: SubmissionCreate, db: Session = Depends(get_db),
                        current_user: User = Depends(get_current_user)):
     assignment = db.query(Assignment).filter(Assignment.id == data.assignment_id).first()

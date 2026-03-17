@@ -31,8 +31,7 @@ def batch_create_behavior_logs(
 
 
 @router.get("/", response_model=list[BehaviorLogRead],
-            dependencies=[Depends(require_roles(
-                UserRole.teacher, UserRole.home_teacher, UserRole.admin))])
+            dependencies=[Depends(require_roles(UserRole.teacher, UserRole.admin))])
 def list_behavior_logs(submission_id: int | None = None, student_id: int | None = None,
                         db: Session = Depends(get_db)):
     q = db.query(BehaviorLog)

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.dependencies import get_db
-from app.models.user import UserRole
+from app.dependencies import get_db, get_current_user
+from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import user_service
 from app.core.permissions import require_roles
@@ -19,6 +19,11 @@ def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 @router.post("/", response_model=UserRead, dependencies=[admin_only])
 def create_user(data: UserCreate, db: Session = Depends(get_db)):
     return user_service.create_user(db, data)
+
+
+@router.get("/me", response_model=UserRead)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
 
 @router.get("/{user_id}", response_model=UserRead, dependencies=[admin_only])

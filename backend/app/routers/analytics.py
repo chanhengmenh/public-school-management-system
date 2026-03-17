@@ -12,14 +12,17 @@ from app.schemas.analytics import (
     StudentScoreTrend, ScorePoint, ClassAnalytics, SubjectAverage,
     ClassRanking, RankingEntry, AdminOverview
 )
-from app.core.permissions import require_roles
+from app.core.permissions import require_roles, require_home_teacher
+from app.core.exceptions import ForbiddenError
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/student/{student_id}/score-trend", response_model=StudentScoreTrend)
 def student_score_trend(student_id: int, db: Session = Depends(get_db),
-                         _: User = Depends(get_current_user)):
+                         current_user: User = Depends(get_current_user)):
+    if current_user.role == UserRole.student and current_user.id != student_id:
+        raise ForbiddenError("Students can only view their own data")
     rows = (
         db.query(Grade, AssignmentSubmission, Assignment)
         .join(AssignmentSubmission, Grade.submission_id == AssignmentSubmission.id)
@@ -50,33 +53,35 @@ def student_score_trend(student_id: int, db: Session = Depends(get_db),
 
 
 @router.get("/class/{class_id}/averages", response_model=ClassAnalytics,
-            dependencies=[Depends(require_roles(UserRole.teacher, UserRole.home_teacher, UserRole.admin))])
+            dependencies=[Depends(require_roles(UserRole.teacher, UserRole.admin))])
 def class_averages(class_id: int, db: Session = Depends(get_db)):
     from app.models.class_ import Class
     from app.models.subject import Subject
     class_obj = db.query(Class).filter(Class.id == class_id).first()
     rows = (
         db.query(
-            ClassSubject.subject_id,
+            Subject.id,
+            Subject.name,
             func.avg(Grade.score).label("avg_score"),
             func.count(Grade.id).label("count"),
         )
+        .join(ClassSubject, ClassSubject.subject_id == Subject.id)
         .join(Assignment, Assignment.class_subject_id == ClassSubject.id)
         .join(AssignmentSubmission, AssignmentSubmission.assignment_id == Assignment.id)
         .join(Grade, Grade.submission_id == AssignmentSubmission.id)
         .filter(ClassSubject.class_id == class_id)
-        .group_by(ClassSubject.subject_id)
+        .group_by(Subject.id, Subject.name)
         .all()
     )
-    subject_avgs = []
-    for row in rows:
-        subj = db.query(Subject).filter(Subject.id == row.subject_id).first()
-        subject_avgs.append(SubjectAverage(
-            subject_id=row.subject_id,
-            subject_name=subj.name if subj else "Unknown",
+    subject_avgs = [
+        SubjectAverage(
+            subject_id=row.id,
+            subject_name=row.name,
             average_score=float(row.avg_score or 0),
             submission_count=row.count,
-        ))
+        )
+        for row in rows
+    ]
     overall = sum(s.average_score for s in subject_avgs) / len(subject_avgs) if subject_avgs else 0.0
     return ClassAnalytics(
         class_id=class_id,
@@ -87,36 +92,36 @@ def class_averages(class_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/home-teacher/{class_id}/ranking", response_model=ClassRanking,
-            dependencies=[Depends(require_roles(UserRole.home_teacher, UserRole.admin))])
+            dependencies=[Depends(require_home_teacher())])
 def class_ranking(class_id: int, db: Session = Depends(get_db)):
     from app.models.class_ import Class
     class_obj = db.query(Class).filter(Class.id == class_id).first()
-    enrollments = db.query(Enrollment).filter(Enrollment.class_id == class_id).all()
-
-    ranking_data = []
-    for enrollment in enrollments:
-        student_id = enrollment.student_id
-        grades = (
-            db.query(Grade)
-            .join(AssignmentSubmission, Grade.submission_id == AssignmentSubmission.id)
-            .filter(AssignmentSubmission.student_id == student_id)
-            .all()
+    rows = (
+        db.query(
+            User.id,
+            User.full_name,
+            func.coalesce(func.sum(Grade.score), 0).label("total_score"),
+            func.coalesce(func.avg(Grade.score), 0).label("average_score"),
+            func.count(Grade.id).label("assignment_count"),
         )
-        total = sum(float(g.score) for g in grades)
-        avg = total / len(grades) if grades else 0.0
-        student = enrollment.student
-        ranking_data.append({
-            "student_id": student_id,
-            "student_name": student.full_name,
-            "total_score": total,
-            "average_score": avg,
-            "assignment_count": len(grades),
-        })
-
-    ranking_data.sort(key=lambda x: x["total_score"], reverse=True)
+        .join(Enrollment, Enrollment.student_id == User.id)
+        .outerjoin(AssignmentSubmission, AssignmentSubmission.student_id == User.id)
+        .outerjoin(Grade, Grade.submission_id == AssignmentSubmission.id)
+        .filter(Enrollment.class_id == class_id)
+        .group_by(User.id, User.full_name)
+        .order_by(func.coalesce(func.sum(Grade.score), 0).desc())
+        .all()
+    )
     entries = [
-        RankingEntry(rank=i + 1, **data)
-        for i, data in enumerate(ranking_data)
+        RankingEntry(
+            rank=i + 1,
+            student_id=row.id,
+            student_name=row.full_name,
+            total_score=float(row.total_score),
+            average_score=float(row.average_score),
+            assignment_count=row.assignment_count,
+        )
+        for i, row in enumerate(rows)
     ]
     return ClassRanking(
         class_id=class_id,
@@ -133,9 +138,7 @@ def admin_overview(db: Session = Depends(get_db)):
     from app.models.attendance import Attendance
     total_users = db.query(User).count()
     total_students = db.query(User).filter(User.role == UserRole.student).count()
-    total_teachers = db.query(User).filter(
-        User.role.in_([UserRole.teacher, UserRole.home_teacher])
-    ).count()
+    total_teachers = db.query(User).filter(User.role == UserRole.teacher).count()
     total_assignments = db.query(Assignment).count()
     total_submissions = db.query(AssignmentSubmission).count()
     submissions_today = (

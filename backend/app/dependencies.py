@@ -1,13 +1,13 @@
 from typing import Generator
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.core.security import decode_token
 from app.core.exceptions import UnauthorizedError
 from app.models.user import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+http_bearer = HTTPBearer()
 
 
 def get_db() -> Generator:
@@ -19,9 +19,10 @@ def get_db() -> Generator:
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
     db: Session = Depends(get_db),
 ) -> User:
+    token = credentials.credentials
     payload = decode_token(token)
     user_id: int | None = payload.get("sub")
     token_type: str | None = payload.get("type")
