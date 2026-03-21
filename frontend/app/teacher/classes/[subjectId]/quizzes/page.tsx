@@ -1,0 +1,1 @@
+export default function TeacherSubjectQuizzesPage() { return <div>Teacher Subject Quizzes</div> }

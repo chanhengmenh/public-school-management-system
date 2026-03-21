@@ -1,0 +1,1 @@
+export default function TeacherSubjectPage() { return <div>Teacher Subject</div> }

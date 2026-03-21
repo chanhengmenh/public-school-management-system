@@ -1,0 +1,1 @@
+export interface School { id: string }

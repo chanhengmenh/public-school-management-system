@@ -1,60 +1,161 @@
 # Intelligent Academic Management System (IAMS)
 
-A comprehensive full-stack academic management platform combining LMS features with assignment integrity monitoring and learning analytics.
+A full-stack, role-based academic management platform inspired by Canvas LMS, extended with behavior analytics and cross-subject student ranking.
 
-## 🎯 Project Overview
+---
 
-This system provides:
-- **Canvas-like LMS**: Complete assignment and resource management
-- **Behavior Analytics**: Real-time tracking of typing vs copy-paste patterns
-- **Learning Analytics**: Comprehensive student performance insights
-- **Role-Based Access**: 5 distinct roles (Admin, Teacher, Home-Class Teacher, Student, Class Monitor)
-- **Dark/Light Themes**: Fully responsive with modern UI design
+## Tech Stack
 
-## 🏗️ Technology Stack
+| Layer      | Technology                                               |
+| ---------- | -------------------------------------------------------- |
+| Frontend   | Next.js 14, React 18, TypeScript, Tailwind CSS, Radix UI |
+| Backend    | FastAPI (Python), SQLAlchemy, Alembic                    |
+| Database   | PostgreSQL 16                                            |
+| Auth       | JWT (access + refresh tokens), bcrypt                    |
+| Storage    | Local filesystem or Supabase Storage                     |
+| Charts     | Recharts                                                 |
+| Containers | Docker + Docker Compose                                  |
 
-### Frontend
-- **Framework**: Next.js 14+ (React, TypeScript)
-- **Styling**: CSS Variables with Tailwind CSS
-- **Icons**: Lucide React
-- **Theme**: Dark/Light mode with localStorage persistence
+---
 
-### Backend
-- **Framework**: FastAPI (Python 3.11+)
-- **Database**: PostgreSQL (via Supabase)
-- **Authentication**: JWT with role-based access control
-- **Analytics**: Pandas, NumPy for behavior analysis
-- **Storage**: Supabase Storage for files
+## User Roles
 
-## 📁 Project Structure
+| Role                         | Key Capabilities                                                    |
+| ---------------------------- | ------------------------------------------------------------------- |
+| **Admin**              | User management, class/subject setup, system analytics              |
+| **Teacher**            | Create/publish assignments, grade submissions, view class analytics |
+| **Home-Class Teacher** | Cross-subject student ranking, behavior log review, class overview  |
+| **Student**            | Submit assignments, view grades, view attendance                    |
+| **Class Monitor**      | Mark daily attendance for a class                                   |
+
+---
+
+## Project Structure
 
 ```
-final_year_project/
-├── frontend/              # Next.js application
-│   ├── app/              # App router pages
-│   ├── components/       # React components
-│   ├── contexts/         # React contexts (Theme)
-│   └── lib/              # Utilities and API client
-├── backend/              # FastAPI application
-│   ├── models/           # Pydantic models
-│   ├── routers/          # API route handlers
-│   ├── services/         # Business logic
-│   ├── utils/            # Utilities (auth, etc.)
-│   ├── main.py           # FastAPI entry point
-│   └── config.py         # Configuration
-├── database/             # Database schema
-│   └── schema.sql        # PostgreSQL schema
-└── docs/                 # Documentation
+final-student-management/
+├── docker-compose.yml          # PostgreSQL + PgAdmin services
+├── backend/
+│   ├── app/
+│   │   ├── main.py             # FastAPI app + routers
+│   │   ├── config.py           # Settings (env vars)
+│   │   ├── database.py         # SQLAlchemy engine & session
+│   │   ├── dependencies.py     # Auth & DB injection
+│   │   ├── core/
+│   │   │   ├── security.py     # JWT & password hashing
+│   │   │   ├── permissions.py  # Role-based guards
+│   │   │   └── exceptions.py   # HTTP error helpers
+│   │   ├── models/             # SQLAlchemy ORM models (11 tables)
+│   │   ├── schemas/            # Pydantic request/response schemas
+│   │   ├── routers/            # API endpoint handlers (13 routers)
+│   │   ├── services/           # Business logic layer
+│   │   └── storage/            # Local & Supabase file storage
+│   ├── alembic/
+│   │   └── versions/
+│   │       └── 0001_initial_schema.py   # Full DB migration
+│   ├── seeds/                  # Sample data seeders
+│   ├── requirements.txt
+│   └── .env.example
+└── frontend/
+    └── src/
+        ├── app/
+        │   ├── (auth)/login/   # Login page
+        │   └── (dashboard)/    # Role-specific pages
+        │       ├── admin/      # Dashboard, Users, Classes, Subjects, Analytics
+        │       ├── teacher/    # Dashboard, Assignments, Gradebook, Analytics
+        │       ├── home-teacher/ # Dashboard, Students, Rankings, Behavior
+        │       ├── student/    # Dashboard, Assignments, Grades, Attendance
+        │       └── class-monitor/ # Dashboard, Attendance marking
+        ├── components/
+        │   ├── layout/         # Sidebar, Topbar
+        │   ├── shared/         # DataTable, StatCard, PageHeader, ConfirmDialog
+        │   └── analytics/      # ScoreTrendChart, ClassAverageBar, RankingTable
+        ├── lib/
+        │   ├── api/            # Axios API clients per resource
+        │   ├── hooks/          # useAuth, useBehaviorTracker
+        │   └── utils/          # formatDate, roleHelpers, cn
+        ├── context/            # AuthContext (JWT + refresh)
+        ├── types/              # TypeScript interfaces
+        └── middleware.ts       # Route protection & role-based redirects
 ```
 
-## 🚀 Getting Started
+---
+
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Python 3.11+
-- PostgreSQL (or Supabase account)
 
-### Frontend Setup
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Python 3.11+
+- Node.js 18+
+
+---
+
+### 1. Clone & configure
+
+```bash
+git clone git@github.com:chanhengmenh/public-school-management-system.git
+cd final-student-management
+```
+
+Copy the backend environment file and fill in your values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Key variables to set in `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://iams_user:iams_pass@localhost:5432/iams_db
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+```
+
+---
+
+### 2. Start the database
+
+```bash
+docker compose up -d
+```
+
+This starts:
+
+- **PostgreSQL** on port `5432`
+- **PgAdmin** on port `5050` (login: `admin@iams.local` / `admin`)
+
+---
+
+### 3. Set up the backend
+
+```bash
+cd backend
+python -m venv .venv #only when we create the venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+
+# Run database migrations
+alembic upgrade head
+
+# Load sample data
+python -m seeds.run_seeds
+
+# Start the API server
+uvicorn app.main:app --reload
+```
+
+API is available at: `http://localhost:8000`
+Interactive docs: `http://localhost:8000/docs`
+
+---
+
+### 4. Set up the frontend
 
 ```bash
 cd frontend
@@ -62,135 +163,101 @@ npm install
 npm run dev
 ```
 
-The frontend will run on `http://localhost:3000`
+App is available at: `http://localhost:3000`
 
-### Backend Setup
+---
 
-```bash
-cd backend
-pip install -r requirements.txt
+## Sample Login Credentials
 
-# Copy environment template
-cp .env.example .env
-# Edit .env with your configuration
+After running seeds, these accounts are available:
 
-# Run the server
-python main.py
+| Role          | Email                  | Password    |
+| ------------- | ---------------------- | ----------- |
+| Admin         | admin@iams.local       | password123 |
+| Teacher       | teacher@iams.local     | password123 |
+| Home Teacher  | hometeacher@iams.local | password123 |
+| Student       | student@iams.local     | password123 |
+| Class Monitor | monitor@iams.local     | password123 |
+
+> Credentials are defined in `backend/seeds/users.py`.
+
+---
+
+## API Overview
+
+| Prefix                        | Description                              |
+| ----------------------------- | ---------------------------------------- |
+| `POST /auth/login`          | Obtain access + refresh tokens           |
+| `POST /auth/refresh`        | Refresh access token                     |
+| `GET/POST /users`           | User management (admin)                  |
+| `GET/POST /classes`         | Class management                         |
+| `GET/POST /subjects`        | Subject management                       |
+| `GET/POST /class-subjects`  | Assign subjects to classes with teachers |
+| `GET/POST /enrollments`     | Enroll students in classes               |
+| `GET/POST /assignments`     | Assignment CRUD + publish                |
+| `GET/POST /submissions`     | Student submission handling              |
+| `GET/POST /grades`          | Grade submissions                        |
+| `POST /attendance/batch`    | Batch attendance recording               |
+| `POST /behavior-logs/batch` | Log keystroke/paste events               |
+| `GET /analytics/...`        | Score trends, rankings, admin overview   |
+| `POST /files/upload`        | File attachment upload                   |
+
+---
+
+## Key Features
+
+### Behavior Tracking
+
+Every student submission is monitored for:
+
+- **Keypress events** — characters typed directly
+- **Paste events** — content pasted from clipboard
+- **Focus gain/loss** — tracks active engagement time
+
+Metrics computed per submission:
+
+- Paste ratio (`paste_chars / total_chars`)
+- Engagement classification: `Typed`, `Mixed`, or `Paste-heavy`
+
+### Cross-Subject Ranking (Home Teacher)
+
+The home-class teacher can view a ranked leaderboard of all students in their class, aggregated across all subjects, showing total score, average percentage, and assignment count.
+
+### Role-Based Route Protection
+
+The Next.js middleware (`src/middleware.ts`) validates JWT tokens server-side and redirects users to their role-specific dashboard. No role can access another role's routes.
+
+---
+
+## Database Schema (Summary)
+
+```
+users → classes (home_teacher_id)
+users → enrollments → classes
+users → class_subjects ← subjects
+class_subjects → assignments → assignment_submissions
+assignment_submissions → behavior_logs
+assignment_submissions → grades
+assignment_submissions → submission_files
+classes + users → attendance
 ```
 
-The backend will run on `http://localhost:8000`
+---
 
-### Database Setup
+## Deployment
 
-1. Create a local PostgreSQL database (recommended for dev) or a Supabase project (production)
-2. Run the schema:
-```bash
-psql -U postgres -d your_database -f database/schema.sql
+| Service      | Platform                |
+| ------------ | ----------------------- |
+| Frontend     | Vercel                  |
+| Backend      | Railway or Fly.io       |
+| Database     | Supabase PostgreSQL     |
+| File Storage | Supabase Storage bucket |
+
+To switch to Supabase storage, set in `.env`:
+
+```env
+STORAGE_BACKEND=supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_STORAGE_BUCKET=iams-files
 ```
-
-### Local PostgreSQL Setup (Windows)
-
-1. Install PostgreSQL 15+ from https://www.postgresql.org/download/windows/
-2. Ensure `psql` is available in your PATH
-3. Create a database for the project:
-```bash
-createdb -U postgres iams
-```
-4. Update backend environment:
-	- Set `DATABASE_URL=postgresql://postgres:<your_password>@localhost:5432/iams` in [backend/.env](backend/.env)
-5. Apply the schema:
-```bash
-psql -U postgres -d iams -f database/schema.sql
-```
-
-### Supabase Configuration (Production)
-
-When you are ready to deploy:
-1. Create a Supabase project and copy the project URL, anon key, and service role key.
-2. Set these in [backend/.env](backend/.env) (or your deployment secrets):
-	- `SUPABASE_URL`
-	- `SUPABASE_KEY`
-	- `SUPABASE_SERVICE_ROLE_KEY`
-3. Set the `DATABASE_URL` to your Supabase Postgres connection string:
-	- `postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres`
-
-## ✨ Key Features
-
-### 1. Color-Coded Text Input
-- **Blue text**: Manually typed content
-- **Orange text**: Copy-pasted content
-- Real-time statistics (typing speed, paste ratio)
-
-### 2. Behavior Analytics
-- Keystroke tracking
-- Paste event detection
-- Focus/blur monitoring
-- Engagement time calculation
-
-### 3. Theme System
-- Dark and Light modes
-- Smooth transitions
-- System preference detection
-- localStorage persistence
-
-### 4. Role-Based Access Control
-- **Admin**: Full system access
-- **Teacher**: Assignment and grading management
-- **Home-Class Teacher**: Cross-subject analytics for their class
-- **Student**: View assignments, submit work, track progress
-- **Class Monitor**: Student privileges + attendance management
-
-## 🎨 Demo
-
-Visit `/demo` to see the behavior tracking feature in action!
-
-Try:
-1. Type some text manually (appears in blue)
-2. Copy and paste text (appears in orange)
-3. Watch the real-time statistics update
-4. Toggle between dark and light themes
-
-## 📊 Database Schema
-
-The system uses 20+ tables including:
-- Users and authentication
-- Classes, subjects, enrollments
-- Assignments and submissions
-- Behavior logs
-- Grades and rankings
-- Attendance records
-- Learning resources
-
-See `database/schema.sql` for complete schema.
-
-## 🔐 Security
-
-- JWT-based authentication
-- Password hashing with bcrypt
-- Role-based access control
-- CORS protection
-- SQL injection prevention (parameterized queries)
-
-## 📝 API Documentation
-
-Once the backend is running, visit:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## 🎓 Academic Context
-
-This project is designed for academic evaluation and demonstration purposes. It showcases:
-- Full-stack development skills
-- Database design and normalization
-- Real-time data tracking
-- Analytics implementation
-- Modern UI/UX design
-- Security best practices
-
-## 📄 License
-
-This is an academic project for educational purposes.
-
-## 👥 Author
-
-Final Year Project - Spring 2026
