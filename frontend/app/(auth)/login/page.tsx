@@ -57,7 +57,10 @@ export default function LoginPage() {
                             </div>
                             <select
                                 value={role}
-                                onChange={(e) => setRole(e.target.value)}
+                                onChange={(e) => {
+                                    setRole(e.target.value);
+                                    setSubRole('normal');
+                                }}
                                 className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
                             >
                                 <option value="student">Student</option>
@@ -84,8 +87,21 @@ export default function LoginPage() {
                                 onChange={(e) => setSubRole(e.target.value)}
                                 className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
                             >
-                                <option value="normal">Normal</option>
-                                <option value="monitor">Class Monitor</option>
+                                {role === 'student' && (
+                                    <>
+                                        <option value="normal">Normal</option>
+                                        <option value="monitor">Class Monitor</option>
+                                    </>
+                                )}
+                                {role === 'teacher' && (
+                                    <>
+                                        <option value="normal">Subject Teacher</option>
+                                        <option value="home_teacher">Home-Class Teacher</option>
+                                    </>
+                                )}
+                                {role === 'admin' && (
+                                    <option value="normal">Normal</option>
+                                )}
                             </select>
                             <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
                                 <ChevronDown className="h-4 w-4 text-slate-400" />

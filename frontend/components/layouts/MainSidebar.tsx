@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -22,11 +22,11 @@ export default function MainSidebar() {
     const [isMonitor, setIsMonitor] = useState(false);
 
     // Run on mount to check if user has class monitor privileges
-    if (typeof window !== 'undefined' && !isMonitor) {
+    useEffect(() => {
         if (document.cookie.includes('mock_sub_role=monitor')) {
             setIsMonitor(true);
         }
-    }
+    }, []);
 
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to log out?")) {

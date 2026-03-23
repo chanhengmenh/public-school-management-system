@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -11,7 +11,11 @@ import {
     Settings,
     LogOut,
     GraduationCap,
-    Menu
+    Menu,
+    Trophy,
+    CalendarCheck,
+    BarChart,
+    Users
 } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
 
@@ -20,6 +24,13 @@ export default function TeacherSidebar() {
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const { unreadCount } = useNotifications();
+    const [isHomeTeacher, setIsHomeTeacher] = useState(false);
+
+    useEffect(() => {
+        if (document.cookie.includes('mock_sub_role=home_teacher')) {
+            setIsHomeTeacher(true);
+        }
+    }, []);
 
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to log out?")) {
@@ -39,6 +50,13 @@ export default function TeacherSidebar() {
 
     const accountLinks: NavLink[] = [
         { name: 'Settings', href: '/teacher/settings', icon: Settings },
+    ];
+
+    const homeClassLinks: NavLink[] = [
+        { name: 'Ranking', href: '/teacher/home-class/ranking', icon: Trophy },
+        { name: 'Attendance', href: '/teacher/home-class/attendance', icon: CalendarCheck },
+        { name: 'Analytics', href: '/teacher/home-class/analytics', icon: BarChart },
+        { name: 'People', href: '/teacher/home-class/people', icon: Users },
     ];
 
     const renderNavLinks = (links: NavLink[]) => {
@@ -132,6 +150,20 @@ export default function TeacherSidebar() {
                         {renderNavLinks(mainMenuLinks)}
                     </nav>
                 </div>
+
+                {/* Home Class Group */}
+                {isHomeTeacher && (
+                    <div className="mb-6">
+                        {!isCollapsed && (
+                            <h3 className="text-xs font-bold text-slate-500 tracking-widest px-6 mb-3 mt-2 uppercase whitespace-nowrap">
+                                My Home Class (10-A)
+                            </h3>
+                        )}
+                        <nav className="space-y-1">
+                            {renderNavLinks(homeClassLinks)}
+                        </nav>
+                    </div>
+                )}
 
                 {/* Account Group */}
                 <div>
