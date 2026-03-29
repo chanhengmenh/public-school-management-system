@@ -11,6 +11,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('student');
     const [subRole, setSubRole] = useState('normal');
+    const [studentId, setStudentId] = useState('alex_id');
     const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = (e: React.FormEvent) => {
@@ -18,6 +19,9 @@ export default function LoginPage() {
         // Set the mock authentication cookie for the middleware to read
         document.cookie = `mock_role=${role}; path=/; max-age=86400`;
         document.cookie = `mock_sub_role=${subRole}; path=/; max-age=86400`;
+        if (role === 'student') {
+            document.cookie = `mock_student_id=${studentId}; path=/; max-age=86400`;
+        }
 
         // Trigger the redirect
         if (role === 'admin') router.push('/admin');
@@ -108,6 +112,31 @@ export default function LoginPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Student Identity */}
+                    {role === 'student' && (
+                        <div className="space-y-2">
+                            <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
+                                🧪 Test Environment: Select Student
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                    <User className="h-4 w-4 text-slate-400" />
+                                </div>
+                                <select
+                                    value={studentId}
+                                    onChange={(e) => setStudentId(e.target.value)}
+                                    className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
+                                >
+                                    <option value="alex_id">Alex (Grade 11)</option>
+                                    <option value="sarah_id">Sarah (Grade 10)</option>
+                                </select>
+                                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
+                                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Email Address */}
                     <div className="space-y-2">

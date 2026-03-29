@@ -1,1 +1,195 @@
+import {
+  Microscope,
+  Calculator,
+  BookOpen,
+  FlaskConical,
+  Globe,
+  Library,
+  BookOpenText,
+  type LucideIcon,
+} from 'lucide-react';
+
 export function cn(...classes: string[]) { return classes.filter(Boolean).join(' ') }
+
+// ─── Subject Theme Mapping ───────────────────────────────────────────
+
+export interface SubjectTheme {
+  /** Background for icon containers, cards (e.g. 'bg-blue-50') */
+  bg: string;
+  /** Text color for icons and headings (e.g. 'text-blue-600') */
+  text: string;
+  /** Progress bar fill color (e.g. 'bg-blue-500') */
+  progressFill: string;
+  /** Left border accent for schedule blocks (e.g. 'border-l-blue-500') */
+  borderL: string;
+  /** Subtle border for cards/blocks (e.g. 'border-blue-100') */
+  border: string;
+  /** Darker text for schedule block headings (e.g. 'text-blue-800') */
+  headingText: string;
+  /** Badge background for grade pills (e.g. 'bg-blue-100') */
+  badgeBg: string;
+  /** Badge text for grade pills (e.g. 'text-blue-700') */
+  badgeText: string;
+}
+
+const subjectThemeMap: Record<string, SubjectTheme> = {
+  physics: {
+    bg: 'bg-blue-50',
+    text: 'text-blue-600',
+    progressFill: 'bg-blue-500',
+    borderL: 'border-l-blue-500',
+    border: 'border-blue-100',
+    headingText: 'text-blue-800',
+    badgeBg: 'bg-blue-100',
+    badgeText: 'text-blue-700',
+  },
+  'advanced math': {
+    bg: 'bg-orange-50',
+    text: 'text-orange-600',
+    progressFill: 'bg-orange-500',
+    borderL: 'border-l-orange-500',
+    border: 'border-orange-100',
+    headingText: 'text-orange-800',
+    badgeBg: 'bg-orange-100',
+    badgeText: 'text-orange-700',
+  },
+  math: {
+    bg: 'bg-orange-50',
+    text: 'text-orange-600',
+    progressFill: 'bg-orange-400',
+    borderL: 'border-l-orange-500',
+    border: 'border-orange-100',
+    headingText: 'text-orange-800',
+    badgeBg: 'bg-orange-100',
+    badgeText: 'text-orange-700',
+  },
+  'english literature': {
+    bg: 'bg-purple-50',
+    text: 'text-purple-600',
+    progressFill: 'bg-purple-500',
+    borderL: 'border-l-purple-500',
+    border: 'border-purple-100',
+    headingText: 'text-purple-800',
+    badgeBg: 'bg-purple-100',
+    badgeText: 'text-purple-700',
+  },
+  'english lit': {
+    bg: 'bg-purple-50',
+    text: 'text-purple-600',
+    progressFill: 'bg-purple-500',
+    borderL: 'border-l-purple-500',
+    border: 'border-purple-100',
+    headingText: 'text-purple-800',
+    badgeBg: 'bg-purple-100',
+    badgeText: 'text-purple-700',
+  },
+  english: {
+    bg: 'bg-purple-50',
+    text: 'text-purple-600',
+    progressFill: 'bg-purple-500',
+    borderL: 'border-l-purple-500',
+    border: 'border-purple-100',
+    headingText: 'text-purple-800',
+    badgeBg: 'bg-purple-100',
+    badgeText: 'text-purple-700',
+  },
+  chemistry: {
+    bg: 'bg-green-50',
+    text: 'text-green-600',
+    progressFill: 'bg-green-500',
+    borderL: 'border-l-green-500',
+    border: 'border-green-100',
+    headingText: 'text-green-800',
+    badgeBg: 'bg-green-100',
+    badgeText: 'text-green-700',
+  },
+  geography: {
+    bg: 'bg-red-50',
+    text: 'text-red-600',
+    progressFill: 'bg-red-500',
+    borderL: 'border-l-red-500',
+    border: 'border-red-100',
+    headingText: 'text-red-800',
+    badgeBg: 'bg-red-100',
+    badgeText: 'text-red-700',
+  },
+  history: {
+    bg: 'bg-teal-50',
+    text: 'text-teal-600',
+    progressFill: 'bg-teal-500',
+    borderL: 'border-l-teal-500',
+    border: 'border-teal-100',
+    headingText: 'text-teal-800',
+    badgeBg: 'bg-teal-100',
+    badgeText: 'text-teal-700',
+  },
+};
+
+const defaultTheme: SubjectTheme = {
+  bg: 'bg-slate-100',
+  text: 'text-slate-500',
+  progressFill: 'bg-slate-500',
+  borderL: 'border-l-slate-500',
+  border: 'border-slate-200',
+  headingText: 'text-slate-800',
+  badgeBg: 'bg-slate-100',
+  badgeText: 'text-slate-700',
+};
+
+/**
+ * Returns a consistent Tailwind color theme for a given subject name.
+ * Lookup is case-insensitive. Falls back to a neutral slate theme.
+ */
+export function getSubjectTheme(subject: string): SubjectTheme {
+  return subjectThemeMap[subject.toLowerCase()] ?? defaultTheme;
+}
+
+// ─── Subject Icon Mapping ────────────────────────────────────────────
+
+const subjectIconMap: Record<string, LucideIcon> = {
+  physics: Microscope,
+  'advanced math': Calculator,
+  math: Calculator,
+  'english literature': BookOpen,
+  'english lit': BookOpen,
+  english: BookOpen,
+  chemistry: FlaskConical,
+  geography: Globe,
+  history: Library,
+};
+
+/**
+ * Returns the appropriate Lucide icon for a given subject name.
+ * Lookup is case-insensitive. Falls back to a generic book icon.
+ */
+export function getSubjectIcon(subject: string): LucideIcon {
+  return subjectIconMap[subject.toLowerCase()] ?? BookOpenText;
+}
+
+// ─── Time Formatting ─────────────────────────────────────────────────
+
+/**
+ * Converts an ISO 8601 timestamp to a human-readable relative time string.
+ * e.g. "just now", "5 mins ago", "2 hours ago", "Yesterday", "Last Week"
+ */
+export function formatTimeAgo(isoTimestamp: string): string {
+  const now = Date.now();
+  const then = new Date(isoTimestamp).getTime();
+  const diffMs = now - then;
+
+  if (diffMs < 0) return 'just now';
+
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'just now';
+  if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return 'Last Week';
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+  return new Date(isoTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
