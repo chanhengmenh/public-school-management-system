@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
     Medal,
     Layers,
@@ -60,7 +61,7 @@ export default function StudentDashboardPage() {
             <PageHeader
                 title="Dashboard"
                 badge={isMonitor ? "Class Monitor" : undefined}
-                subtitle="Monday, 2 June 2025"
+                subtitle={new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             />
 
             <div className="max-w-7xl mx-auto w-full flex flex-col">
@@ -90,50 +91,95 @@ export default function StudentDashboardPage() {
                         })}
                     </div>
 
-                    {/* 3. Today's Classes Card */}
-                    <Card className="p-6 mt-6">
-                        <h2 className="text-xl font-serif font-bold text-slate-900 flex items-baseline gap-2 mb-2">
-                            Today&apos;s Classes <span className="text-sm font-sans font-normal text-slate-400">— Monday</span>
-                        </h2>
+                    {/* Monitor Quick Action */}
+                    {isMonitor && (
+                        <Card className="p-6 mt-6 border-indigo-200 bg-indigo-50/50">
+                            <h2 className="text-xl font-serif font-bold text-indigo-900 mb-2">Morning Duty: Draft Attendance</h2>
+                            <p className="text-sm text-indigo-700 mb-4">You have not submitted the draft attendance for today yet. Please submit it to your home-class teacher before the first period begins.</p>
+                            <Link href="/student/class-monitor/draft-attendance" className="inline-flex items-center justify-center px-4 py-2 font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                                Submit Attendance Report
+                            </Link>
+                        </Card>
+                    )}
 
-                        <div className="flex flex-col">
-                            {data.todaysClasses.map((c) => {
-                                const theme = getSubjectTheme(c.subject);
-                                const SubjectIcon = subjectIconMap[c.subject] ?? BookOpen;
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                        {/* 3. Today's Classes Card */}
+                        <Card className="p-6 h-full border-slate-200 shadow-sm">
+                            <h2 className="text-xl font-serif font-bold text-slate-900 flex items-baseline gap-2 mb-2">
+                                Today&apos;s Classes <span className="text-sm font-sans font-normal text-slate-400">— Monday</span>
+                            </h2>
 
-                                return (
-                                    <div key={c.id} className="flex items-center justify-between py-4 border-b border-slate-50 last:border-0 last:pb-0">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`p-3 rounded-xl shrink-0 flex items-center justify-center ${theme.bg} ${theme.text}`}>
-                                                <SubjectIcon className="w-5 h-5" />
+                            <div className="flex flex-col">
+                                {data.todaysClasses.map((c) => {
+                                    const theme = getSubjectTheme(c.subject);
+                                    const SubjectIcon = subjectIconMap[c.subject] ?? BookOpen;
+
+                                    return (
+                                        <div key={c.id} className="flex items-center justify-between py-4 border-b border-slate-50 last:border-0 last:pb-0">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-xl shrink-0 flex items-center justify-center ${theme.bg} ${theme.text}`}>
+                                                    <SubjectIcon className="w-5 h-5" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold font-sans text-slate-800">{c.subject}</span>
+                                                    <span className="text-sm text-slate-500 mt-0.5">{c.teacher} · {c.room}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold font-sans text-slate-800">{c.subject}</span>
-                                                <span className="text-sm text-slate-500 mt-0.5">{c.teacher} · {c.room}</span>
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                <span className="text-sm font-medium text-slate-600">{c.time}</span>
+                                                {c.status === 'now' ? (
+                                                    <Badge variant="warning" className="text-[11px] uppercase font-bold w-12 justify-center">
+                                                        Now
+                                                    </Badge>
+                                                ) : c.status === 'next' ? (
+                                                    <Badge variant="info" className="text-[11px] uppercase font-bold w-12 justify-center">
+                                                        Next
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="w-12"></span>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                            <span className="text-sm font-medium text-slate-600">{c.time}</span>
-                                            {c.status === 'now' ? (
-                                                <Badge variant="warning" className="text-[11px] uppercase font-bold w-12 justify-center">
-                                                    Now
-                                                </Badge>
-                                            ) : c.status === 'next' ? (
-                                                <Badge variant="info" className="text-[11px] uppercase font-bold w-12 justify-center">
-                                                    Next
-                                                </Badge>
+                                    );
+                                })}
+                            </div>
+                        </Card>
+
+                        {/* 5. Assignments Card (Moved inside grid) */}
+                        <Card className="p-6 h-full border-slate-200 shadow-sm">
+                            <h2 className="text-xl font-serif font-bold text-slate-900 mb-2">Assignments</h2>
+
+                            <div className="flex flex-col">
+                                {data.assignments.map((a) => (
+                                    <div key={a.id} className="flex items-center py-4 border-b border-slate-50 last:border-0 last:pb-0">
+                                        <div className="shrink-0 mr-4">
+                                            {a.done ? (
+                                                <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                                                    <Check className="w-3 h-3 text-white stroke-[3]" />
+                                                </div>
                                             ) : (
-                                                <span className="w-12"></span>
+                                                <div className="w-5 h-5 rounded-md border-2 border-slate-200"></div>
                                             )}
                                         </div>
+                                        <div className="flex-1 flex flex-col">
+                                            <span className={`text-sm font-bold font-sans ${a.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                                                {a.task}
+                                            </span>
+                                            <span className={`text-xs font-sans mt-0.5 ${a.done ? 'text-slate-300' : 'text-slate-400'}`}>
+                                                {a.subject}
+                                            </span>
+                                        </div>
+                                        <Badge variant={urgencyToBadgeVariant[a.urgency]}>
+                                            {a.due}
+                                        </Badge>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </Card>
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
 
                     {/* 4. Grade Overview Card */}
-                    <Card className="p-6 mt-6">
+                    <Card className="p-6 mt-6 border-slate-200 shadow-sm">
                         <h2 className="text-xl font-serif font-bold text-slate-900">Grade Overview</h2>
 
                         <div className="mt-8 flex flex-col md:flex-row items-center gap-12 lg:gap-16 px-4">
@@ -141,7 +187,7 @@ export default function StudentDashboardPage() {
                             <div className="relative flex items-center justify-center shrink-0">
                                 <svg className="w-28 h-28 transform -rotate-90">
                                     <circle cx="56" cy="56" r="48" className="text-slate-100" strokeWidth="10" stroke="currentColor" fill="none" />
-                                    <circle cx="56" cy="56" r="48" className="text-orange-400" strokeWidth="10" stroke="currentColor" fill="none" strokeDasharray="301" strokeDashoffset="20" strokeLinecap="round" />
+                                    <circle cx="56" cy="56" r="48" className="text-orange-400" strokeWidth="10" stroke="currentColor" fill="none" strokeDasharray="301" strokeDashoffset={301 - (Number(data.gpa) / 4.0) * 301} strokeLinecap="round" />
                                 </svg>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center mt-1">
                                     <span className="text-2xl font-bold font-sans text-slate-900 leading-none">{data.gpa}</span>
@@ -166,38 +212,6 @@ export default function StudentDashboardPage() {
                                     );
                                 })}
                             </div>
-                        </div>
-                    </Card>
-
-                    {/* 5. Assignments Card */}
-                    <Card className="p-6 mt-6">
-                        <h2 className="text-xl font-serif font-bold text-slate-900 mb-2">Assignments</h2>
-
-                        <div className="flex flex-col">
-                            {data.assignments.map((a) => (
-                                <div key={a.id} className="flex items-center py-4 border-b border-slate-50 last:border-0 last:pb-0">
-                                    <div className="shrink-0 mr-4">
-                                        {a.done ? (
-                                            <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                                                <Check className="w-3 h-3 text-white stroke-[3]" />
-                                            </div>
-                                        ) : (
-                                            <div className="w-5 h-5 rounded-md border-2 border-slate-200"></div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 flex flex-col">
-                                        <span className={`text-sm font-bold font-sans ${a.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                                            {a.task}
-                                        </span>
-                                        <span className={`text-xs font-sans mt-0.5 ${a.done ? 'text-slate-300' : 'text-slate-400'}`}>
-                                            {a.subject}
-                                        </span>
-                                    </div>
-                                    <Badge variant={urgencyToBadgeVariant[a.urgency]}>
-                                        {a.due}
-                                    </Badge>
-                                </div>
-                            ))}
                         </div>
                     </Card>
 

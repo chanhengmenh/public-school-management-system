@@ -45,7 +45,7 @@ const STUDENT_MAIN: NavLink[] = [
 ];
 
 const STUDENT_MONITOR: NavLink[] = [
-  { name: 'Draft Attendance', href: '/student/attendance', icon: ClipboardCheck },
+  { name: 'Draft Attendance', href: '/student/class-monitor/draft-attendance', icon: ClipboardCheck },
 ];
 
 const STUDENT_ACCOUNT: NavLink[] = [

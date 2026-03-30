@@ -18,6 +18,7 @@ export interface AuthUser {
 interface AuthStoreContextType {
   user: AuthUser | null;
   setUser: (user: AuthUser | null) => void;
+  isHydrated: boolean;
 }
 
 const AuthStoreContext = createContext<AuthStoreContextType | undefined>(undefined);
@@ -34,6 +35,7 @@ function getCookie(name: string): string | null {
 
 export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Hydrate from cookies on mount
   useEffect(() => {
@@ -92,13 +94,15 @@ export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
         homeClass,
       });
     }
+
+    setIsHydrated(true);
   }, []);
 
   const setUser = useCallback((u: AuthUser | null) => {
     setUserState(u);
   }, []);
 
-  const value = useMemo(() => ({ user, setUser }), [user, setUser]);
+  const value = useMemo(() => ({ user, setUser, isHydrated }), [user, setUser, isHydrated]);
 
   return (
     <AuthStoreContext.Provider value={value}>

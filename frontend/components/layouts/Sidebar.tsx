@@ -207,11 +207,9 @@ export default function Sidebar({ role }: SidebarProps) {
               <span className="text-white text-xl font-bold font-serif tracking-tight whitespace-nowrap overflow-hidden">
                 EduSchool
               </span>
-              {role !== 'student' && (
-                <span className={`text-[10px] ${theme.logoColor.replace('text-', 'text-').replace('500', '400')} tracking-wider font-sans uppercase`}>
-                  {theme.portalLabel}
-                </span>
-              )}
+              <span className={`text-[10px] ${theme.logoColor.replace('text-', 'text-').replace('500', '400')} tracking-wider font-sans uppercase`}>
+                {theme.portalLabel}
+              </span>
             </div>
           </div>
         )}

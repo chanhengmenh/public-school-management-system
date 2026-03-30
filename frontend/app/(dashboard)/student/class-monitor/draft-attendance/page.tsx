@@ -7,34 +7,20 @@ import { Card, Button, Badge, ConfirmModal, ToastContainer, useToast } from '@/c
 import { MOCK_ROSTERS_DB } from '@/lib/mock-data/student';
 import { useAuthStore } from '@/store/useAuthStore';
 import type { AttendanceStatus, StudentRoster } from '@/types/school.types';
+import { useRouter } from 'next/navigation';
 
 export default function DraftAttendancePage() {
     const { user } = useAuthStore();
+    const router = useRouter();
     const isMonitor = user?.subRole === 'monitor';
     const activeRoster = MOCK_ROSTERS_DB[user?.classId ?? 'class_11A'] || MOCK_ROSTERS_DB['class_11A'];
 
-    const [students, setStudents] = useState<StudentRoster[]>(activeRoster);
+    const [students, setStudents] = useState<StudentRoster[]>(activeRoster.map(s => ({ ...s, status: 'Present' as AttendanceStatus })));
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [subject, setSubject] = useState('Physics');
     const [session, setSession] = useState('8:00 AM');
     const [showConfirm, setShowConfirm] = useState(false);
     const { toasts, addToast, dismissToast } = useToast();
-
-    if (!isMonitor) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-                <div className="bg-red-50 text-red-500 p-4 rounded-full mb-4">
-                    <ClipboardCheck className="w-8 h-8" />
-                </div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
-                <p className="text-slate-500 max-w-sm">
-                    Only Class Monitors are authorized to submit draft attendance. 
-                    Please contact your teacher if you believe this is an error.
-                </p>
-            </div>
-        );
-    }
-
     const handleStatusChange = (id: number, newStatus: AttendanceStatus) => {
         setStudents(current =>
             current.map(student =>
@@ -50,7 +36,8 @@ export default function DraftAttendancePage() {
     const handleConfirmSubmit = () => {
         setShowConfirm(false);
         addToast('success', `Attendance submitted for ${subject} (${session}) on ${date}`);
-        setStudents(activeRoster);
+        setStudents(activeRoster.map(s => ({ ...s, status: 'Present' as AttendanceStatus })));
+        router.push('/student');
     };
 
     const statusVariant = (status: AttendanceStatus): 'success' | 'error' | 'warning' => {
@@ -61,13 +48,13 @@ export default function DraftAttendancePage() {
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans">
-            <div className="max-w-7xl mx-auto w-full flex flex-col">
-                <PageHeader
-                    title="Draft Attendance"
-                    badge="Monitor Task"
-                    subtitle="Submit daily attendance to your teachers."
-                />
+            <PageHeader
+                title="Draft Attendance"
+                badge="Monitor Task"
+                subtitle="Submit daily attendance to your teachers."
+            />
 
+            <div className="max-w-7xl mx-auto w-full flex flex-col">
                 <div className="px-6 lg:px-8 pb-12 w-full max-w-4xl mt-8">
 
                     {/* Session Details */}
@@ -189,7 +176,7 @@ export default function DraftAttendancePage() {
             <ConfirmModal
                 isOpen={showConfirm}
                 title="Submit Attendance?"
-                description={`You are about to submit the attendance report for ${subject} (${session}) on ${date}. This action cannot be undone.`}
+                description={`You are submitting a draft. Your homeroom teacher will review and finalize this report. You cannot edit it once submitted.`}
                 confirmLabel="Submit"
                 cancelLabel="Go Back"
                 onConfirm={handleConfirmSubmit}
