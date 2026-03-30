@@ -9,6 +9,10 @@ export interface AuthUser {
   role: 'student' | 'teacher' | 'admin';
   subRole: string;
   classId: string;
+  homeClass?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface AuthStoreContextType {
@@ -33,6 +37,30 @@ export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
 
   // Hydrate from cookies on mount
   useEffect(() => {
+    // ---- HARDCODED TEACHER LOGIN FOR TESTING ----
+    // To test specific roles, you can uncomment these blocks:
+    
+    // Block 1: Home-Class Teacher (Ms. Jean)
+    // setUserState({
+    //   id: 'teacher_002',
+    //   role: 'teacher',
+    //   subRole: 'home_teacher',
+    //   classId: '',
+    //   homeClass: { id: 'class_10A', name: '10-A' },
+    // });
+    // return; // Bypass cookie logic below temporarily
+
+    // Block 2: Subject Teacher (Mr. Tan)
+    // setUserState({ 
+    //   id: 'teacher_001', 
+    //   role: 'teacher', 
+    //   subRole: 'normal', 
+    //   classId: '', 
+    //   homeClass: null 
+    // });
+    // return; // Bypass cookie logic below temporarily
+    // ---------------------------------------------
+
     const role = getCookie('mock_role') as AuthUser['role'] | null;
     const subRole = getCookie('mock_sub_role') ?? 'normal';
     const studentId = getCookie('mock_student_id') ?? 'alex_id';
@@ -44,11 +72,24 @@ export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (role) {
+      let teacherId = `${role}_default`;
+      let homeClass = null;
+
+      if (role === 'teacher') {
+        if (subRole === 'home_teacher') {
+          teacherId = 'teacher_002';
+          homeClass = { id: 'class_10A', name: '10-A' };
+        } else {
+          teacherId = 'teacher_001';
+        }
+      }
+
       setUserState({
-        id: role === 'student' ? studentId : `${role}_default`,
-        role,
+        id: role === 'student' ? studentId : teacherId,
+        role: role as AuthUser['role'],
         subRole,
         classId,
+        homeClass,
       });
     }
   }, []);

@@ -60,7 +60,7 @@ export interface CourseDirectory {
 
 // ─── Student Schedule ────────────────────────────────────────────────
 
-export type WeekDay = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday';
+export type WeekDay = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 
 export interface ScheduleEntry {
   id: number;
@@ -123,4 +123,87 @@ export interface EnrollmentData {
   subjectName: string;
   teacher: string;
   weeks: EnrollmentWeek[];
+}
+
+// ─── Teacher Portal ──────────────────────────────────────────────────
+
+export interface TeacherStat {
+  id: string;
+  value: number;
+  label: string;
+  sublabel: string;
+  detail: string;
+}
+
+export interface TeacherClass {
+  id: string;
+  subject: string;
+  className: string;
+  schedule: string;
+  students: number;
+  hw: number;
+  quizzes: number;
+  avg: string;
+  room: string;
+}
+
+export interface TeacherTodayClass {
+  id: string;
+  subject: string;
+  className: string;
+  room: string;
+  students: number;
+  time: string;
+  duration: string;
+  status: 'now' | 'next' | 'upcoming' | 'break';
+}
+
+export interface TeacherPendingGrading {
+  id: string;
+  title: string;
+  subject: string;
+  className: string;
+  dueLabel: string;
+  isOverdue: boolean;
+  submitted: number;
+  total: number;
+}
+
+export type TeacherScheduleBlockType = 'Class' | 'Prep' | 'Meeting';
+
+export type TeacherScheduleDay = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
+
+/** Flat relational schedule event — one object per class/meeting instance */
+export interface TeacherScheduleEvent {
+  id: string;
+  type: TeacherScheduleBlockType;
+  day: TeacherScheduleDay;
+  time: string;        // e.g. '8:00 AM'
+  subject: string;
+  students?: number;
+  room: string;
+  link?: string;
+}
+
+export interface TeacherNotice {
+  id: string;
+  title: string;
+  message: string;
+}
+
+export interface TeacherData {
+  name: string;
+  initials: string;
+  greeting: string;
+  stats: TeacherStat[];
+  todaysClasses: TeacherTodayClass[];
+  pendingGrading: TeacherPendingGrading[];
+  classes: TeacherClass[];
+  schedule: TeacherScheduleEvent[];
+  lunchTime: string;
+  notices: TeacherNotice[];
+  homeClass?: {
+    id: string;
+    name: string;
+  };
 }

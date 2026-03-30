@@ -13,6 +13,7 @@ import {
 import {
   NAV_CONFIG,
   ROLE_THEMES,
+  HOME_CLASS_LINKS,
   type DashboardRole,
   type NavLink,
   type NavGroup,
@@ -21,6 +22,7 @@ import { useStudentNotifications } from '@/contexts/StudentNotificationContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getStudentData } from '@/lib/mock-data/student';
+import { getTeacherData } from '@/lib/mock-data/teacher';
 
 interface SidebarProps {
   role: DashboardRole;
@@ -32,24 +34,32 @@ export default function Sidebar({ role }: SidebarProps) {
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [subRole, setSubRole] = useState<string | null>(null);
 
   const { user } = useAuthStore();
   const baseTheme = ROLE_THEMES[role];
   const staticNavGroups = NAV_CONFIG[role];
+  
+  const studentData = role === 'student' ? getStudentData(user?.id ?? 'alex_id') : null;
+  const teacherData = role === 'teacher' ? getTeacherData(user?.id ?? 'teacher_001') : null;
 
   const theme = useMemo(() => {
-    if (role === 'student') {
-      const studentData = getStudentData(user?.id ?? 'alex_id');
+    if (role === 'student' && studentData) {
       return {
         ...baseTheme,
         userName: studentData.name,
         userDetail: studentData.gradeLevel,
         userInitials: studentData.initials,
       };
+    } else if (role === 'teacher' && teacherData) {
+      return {
+        ...baseTheme,
+        userName: teacherData.name,
+        userDetail: teacherData.homeClass ? 'Home-Class Teacher' : 'Subject Teacher',
+        userInitials: teacherData.initials,
+      };
     }
     return baseTheme;
-  }, [role, user?.id, baseTheme]);
+  }, [role, studentData, teacherData, baseTheme]);
 
   // ─── Dynamic badge counts from context ───
   let dynamicUnread: number | undefined;
@@ -69,10 +79,23 @@ export default function Sidebar({ role }: SidebarProps) {
 
   // Override notification link badge with live unread count
   const navGroups: NavGroup[] = useMemo(() => {
-    const notifHref = role === 'student' ? '/student/notifications' : role === 'teacher' ? '/teacher/notifications' : null;
-    if (notifHref == null || dynamicUnread == null) return staticNavGroups;
+    let baseGroups = staticNavGroups;
 
-    return staticNavGroups.map(group => ({
+    if (role === 'teacher' && teacherData?.homeClass) {
+      baseGroups = [
+        baseGroups[0],
+        {
+          label: `MY HOME CLASS (${teacherData.homeClass.name})`,
+          links: HOME_CLASS_LINKS,
+        },
+        baseGroups[1],
+      ];
+    }
+
+    const notifHref = role === 'student' ? '/student/notifications' : role === 'teacher' ? '/teacher/notifications' : null;
+    if (notifHref == null || dynamicUnread == null) return baseGroups;
+
+    return baseGroups.map(group => ({
       ...group,
       links: group.links.map(link =>
         link.href === notifHref
@@ -80,19 +103,7 @@ export default function Sidebar({ role }: SidebarProps) {
           : link
       ),
     }));
-  }, [staticNavGroups, role, dynamicUnread]);
-
-  // ─── Sub-role detection ───
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      const cookies = document.cookie;
-      if (cookies.includes('mock_sub_role=monitor')) {
-        setSubRole('monitor');
-      } else if (cookies.includes('mock_sub_role=home_teacher')) {
-        setSubRole('home_teacher');
-      }
-    }
-  }, []);
+  }, [staticNavGroups, role, teacherData?.homeClass, dynamicUnread]);
 
   // ─── Close mobile drawer on route change ───
   useEffect(() => {
@@ -230,7 +241,7 @@ export default function Sidebar({ role }: SidebarProps) {
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {navGroups.map((group) => {
           // Skip groups that require a sub-role if it doesn't match
-          if (group.subRoleRequired && group.subRoleRequired !== subRole) {
+          if (group.subRoleRequired && group.subRoleRequired !== user?.subRole) {
             return null;
           }
 

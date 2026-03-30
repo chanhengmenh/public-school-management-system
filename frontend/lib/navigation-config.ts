@@ -75,7 +75,7 @@ const TEACHER_MAIN: NavLink[] = [
   { name: 'Notifications', href: '/teacher/notifications', icon: Bell },
 ];
 
-const TEACHER_HOME_CLASS: NavLink[] = [
+export const HOME_CLASS_LINKS: NavLink[] = [
   { name: 'Ranking', href: '/teacher/home-class/ranking', icon: Trophy },
   { name: 'Attendance', href: '/teacher/home-class/attendance', icon: CalendarCheck },
   { name: 'Analytics', href: '/teacher/home-class/analytics', icon: BarChart },
@@ -88,7 +88,6 @@ const TEACHER_ACCOUNT: NavLink[] = [
 
 export const TEACHER_NAV: NavGroup[] = [
   { label: 'Main Menu', links: TEACHER_MAIN },
-  { label: 'My Home Class (10-A)', links: TEACHER_HOME_CLASS, subRoleRequired: 'home_teacher' },
   { label: 'Account', links: TEACHER_ACCOUNT },
 ];
 

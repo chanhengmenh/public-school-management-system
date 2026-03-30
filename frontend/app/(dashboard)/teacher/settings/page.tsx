@@ -2,7 +2,10 @@
 
 import React, { useState } from 'react';
 import PageHeader from '@/components/layouts/PageHeader';
-import { User, Shield, Bell, Save, Camera, ToggleLeft, ToggleRight, Pencil, X } from 'lucide-react';
+import { Card, Button, Input, Toggle, ConfirmModal, ToastContainer, useToast } from '@/components/ui';
+import { User, Shield, Bell, Save, Camera, Pencil, X } from 'lucide-react';
+import { getTeacherData } from '@/lib/mock-data/teacher';
+import { useAuthStore } from '@/store/useAuthStore';
 
 // --- Types ---
 type TabId = 'Profile' | 'Security' | 'Notifications';
@@ -14,11 +17,15 @@ const tabs: { id: TabId; label: string; icon: typeof User }[] = [
 ];
 
 export default function TeacherSettingsPage() {
+    const { user } = useAuthStore();
+    const teacherData = getTeacherData(user?.id ?? 'teacher_001');
+
     const [activeTab, setActiveTab] = useState<TabId>('Profile');
+    const { toasts, addToast, dismissToast } = useToast();
 
     // --- Profile State ---
-    const [name, setName] = useState('Mr. Tan Wei');
-    const [email, setEmail] = useState('tan.wei@school.edu');
+    const [name, setName] = useState(teacherData.name);
+    const [email, setEmail] = useState(`${teacherData.name.toLowerCase().replace(/\s+/g, '.')}@school.edu`);
     const [department, setDepartment] = useState('Science');
     const [bio, setBio] = useState('Physics teacher with 8 years of experience specializing in mechanics and thermodynamics. Passionate about making complex concepts accessible to all students.');
 
@@ -38,8 +45,23 @@ export default function TeacherSettingsPage() {
     };
 
     const handleEditCancel = () => {
-        setIsEditing(false);
+        setConfirmAction({
+            title: 'Discard Changes?',
+            description: 'All unsaved profile changes will be lost.',
+            onConfirm: () => {
+                setConfirmAction(null);
+                setIsEditing(false);
+                addToast('info', 'Changes discarded.');
+            },
+        });
     };
+
+    // --- Confirm modal state ---
+    const [confirmAction, setConfirmAction] = useState<{
+        title: string;
+        description: string;
+        onConfirm: () => void;
+    } | null>(null);
 
     const handleEditSave = () => {
         setName(draftName);
@@ -47,8 +69,7 @@ export default function TeacherSettingsPage() {
         setDepartment(draftDepartment);
         setBio(draftBio);
         setIsEditing(false);
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+        addToast('success', 'Profile updated successfully!');
     };
 
     // --- Security State ---
@@ -56,31 +77,26 @@ export default function TeacherSettingsPage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // --- Notification Toggles ---
-    const [newMessages, setNewMessages] = useState(true);
-    const [lateSubmissions, setLateSubmissions] = useState(true);
-    const [systemAlerts, setSystemAlerts] = useState(false);
-    const [weeklyDigest, setWeeklyDigest] = useState(true);
+    const isPasswordValid = newPassword.length >= 8 && newPassword === confirmPassword;
 
-    // --- Save Toast ---
-    const [showToast, setShowToast] = useState(false);
-    const handleSave = () => {
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+    const handlePasswordUpdate = () => {
+        addToast('success', 'Password updated successfully!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
     };
 
-    // --- Toggle Component ---
-    const Toggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
-        <button onClick={() => onChange(!value)} className="transition-colors">
-            {value
-                ? <ToggleRight className="w-8 h-8 text-indigo-600" />
-                : <ToggleLeft className="w-8 h-8 text-slate-300" />
-            }
-        </button>
-    );
+    // --- Notification Toggles ---
+    const [notifPrefs, setNotifPrefs] = useState({
+        newMessages: true,
+        lateSubmissions: true,
+        systemAlerts: false,
+        weeklyDigest: true,
+    });
 
-    const inputClass = 'w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400';
-    const readOnlyClass = `${inputClass} bg-slate-50 cursor-default`;
+    const handleSaveNotifications = () => {
+        addToast('success', 'Notification preferences saved!');
+    };
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -97,23 +113,22 @@ export default function TeacherSettingsPage() {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
                         return (
-                            <button
+                            <Button
                                 key={tab.id}
+                                variant={isActive ? 'primary' : 'ghost'}
+                                color={isActive ? 'bg-indigo-600' : undefined}
+                                icon={Icon}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-colors w-full text-left ${isActive
-                                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                                    : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                                    }`}
+                                className={`!justify-start !w-full !rounded-xl ${isActive ? 'shadow-sm shadow-indigo-500/20' : '!text-slate-600 hover:!text-slate-900'}`}
                             >
-                                <Icon className="w-4 h-4" />
                                 {tab.label}
-                            </button>
+                            </Button>
                         );
                     })}
                 </div>
 
                 {/* Right Content Area */}
-                <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8">
+                <Card className="flex-1 p-6 md:p-8">
 
                     {/* ====== PROFILE TAB ====== */}
                     {activeTab === 'Profile' && (
@@ -121,13 +136,14 @@ export default function TeacherSettingsPage() {
                             <div className="flex items-center justify-between mb-1">
                                 <h2 className="text-xl font-bold text-slate-900">Profile Information</h2>
                                 {!isEditing && (
-                                    <button
+                                    <Button
+                                        variant="ghost"
+                                        icon={Pencil}
                                         onClick={handleEditStart}
-                                        className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors px-4 py-2 rounded-xl hover:bg-indigo-50"
+                                        className="!text-indigo-600 hover:!text-indigo-800 hover:!bg-indigo-50"
                                     >
-                                        <Pencil className="w-4 h-4" />
                                         Edit Profile
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                             <p className="text-sm text-slate-500 mt-1 mb-8">
@@ -136,91 +152,77 @@ export default function TeacherSettingsPage() {
 
                             {/* Avatar Section */}
                             <div className="flex items-center gap-5 mb-8 pb-8 border-b border-slate-100">
-                                <div className="w-20 h-20 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold shrink-0 border-2 border-indigo-200">
-                                    TW
+                                <div className="w-20 h-20 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold shrink-0 border-2 border-indigo-200 uppercase">
+                                    {teacherData.initials}
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <h3 className="text-sm font-bold text-slate-900">{isEditing ? draftName : name}</h3>
                                     {isEditing && (
-                                        <button className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
-                                            <Camera className="w-4 h-4" />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            icon={Camera}
+                                            className="!text-indigo-600 hover:!text-indigo-800 !p-0"
+                                        >
                                             Change Picture
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             </div>
 
                             {/* Input Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-slate-700">Full Name</label>
-                                    <input
-                                        type="text"
-                                        value={isEditing ? draftName : name}
-                                        onChange={(e) => setDraftName(e.target.value)}
-                                        readOnly={!isEditing}
-                                        className={isEditing ? inputClass : readOnlyClass}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-slate-700">Email Address</label>
-                                    <input
-                                        type="email"
-                                        value={isEditing ? draftEmail : email}
-                                        onChange={(e) => setDraftEmail(e.target.value)}
-                                        readOnly={!isEditing}
-                                        className={isEditing ? inputClass : readOnlyClass}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-slate-700">Department</label>
-                                    <input
-                                        type="text"
-                                        value={isEditing ? draftDepartment : department}
-                                        onChange={(e) => setDraftDepartment(e.target.value)}
-                                        readOnly={!isEditing}
-                                        className={isEditing ? inputClass : readOnlyClass}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-slate-700">Employee ID</label>
-                                    <input
-                                        type="text"
-                                        value="TCH-2025-001"
-                                        readOnly
-                                        className={`${inputClass} bg-slate-50 text-slate-400 cursor-not-allowed`}
-                                    />
-                                </div>
+                                <Input
+                                    label="Full Name"
+                                    value={isEditing ? draftName : name}
+                                    onChange={(e) => setDraftName(e.target.value)}
+                                    readOnly={!isEditing}
+                                    className={!isEditing ? '!bg-slate-50 !cursor-default' : ''}
+                                />
+                                <Input
+                                    label="Email Address"
+                                    type="email"
+                                    value={isEditing ? draftEmail : email}
+                                    onChange={(e) => setDraftEmail(e.target.value)}
+                                    readOnly={!isEditing}
+                                    className={!isEditing ? '!bg-slate-50 !cursor-default' : ''}
+                                />
+                                <Input
+                                    label="Department"
+                                    value={isEditing ? draftDepartment : department}
+                                    onChange={(e) => setDraftDepartment(e.target.value)}
+                                    readOnly={!isEditing}
+                                    className={!isEditing ? '!bg-slate-50 !cursor-default' : ''}
+                                />
+                                <Input
+                                    label="Employee ID"
+                                    value="TCH-2025-001"
+                                    readOnly
+                                    disabled
+                                    className="!bg-slate-50 !text-slate-400 !cursor-not-allowed"
+                                />
                             </div>
 
                             <div className="flex flex-col gap-2 mb-8">
-                                <label className="text-sm font-bold text-slate-700">Bio / Introduction</label>
+                                <label className="text-sm font-medium text-slate-700">Bio / Introduction</label>
                                 <textarea
                                     value={isEditing ? draftBio : bio}
                                     onChange={(e) => setDraftBio(e.target.value)}
                                     readOnly={!isEditing}
                                     rows={4}
-                                    className={`${isEditing ? inputClass : readOnlyClass} resize-none`}
+                                    className={`w-full px-4 py-2.5 rounded-lg border bg-slate-50 text-slate-900 font-sans transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder:text-slate-400 border-slate-200 resize-none ${!isEditing ? '!cursor-default' : ''}`}
                                 />
                             </div>
 
                             {/* Footer — only shows when editing */}
                             {isEditing && (
                                 <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-                                    <button
-                                        onClick={handleEditCancel}
-                                        className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
-                                    >
-                                        <X className="w-4 h-4" />
+                                    <Button variant="outline" icon={X} onClick={handleEditCancel}>
                                         Cancel
-                                    </button>
-                                    <button
-                                        onClick={handleEditSave}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
-                                    >
-                                        <Save className="w-4 h-4" />
+                                    </Button>
+                                    <Button variant="primary" color="bg-indigo-600" icon={Save} onClick={handleEditSave}>
                                         Save Changes
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
                         </div>
@@ -233,46 +235,39 @@ export default function TeacherSettingsPage() {
                             <p className="text-sm text-slate-500 mt-1 mb-8">Manage your password and account security.</p>
 
                             <div className="max-w-md flex flex-col gap-6 mb-8">
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-slate-700">Current Password</label>
-                                    <input
-                                        type="password"
-                                        value={currentPassword}
-                                        onChange={(e) => setCurrentPassword(e.target.value)}
-                                        placeholder="Enter current password"
-                                        className={inputClass}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-slate-700">New Password</label>
-                                    <input
-                                        type="password"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="Enter new password"
-                                        className={inputClass}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-sm font-bold text-slate-700">Confirm New Password</label>
-                                    <input
-                                        type="password"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="Confirm new password"
-                                        className={inputClass}
-                                    />
-                                </div>
+                                <Input
+                                    label="Current Password"
+                                    type="password"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    placeholder="Enter current password"
+                                />
+                                <Input
+                                    label="New Password"
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Enter new password (min. 8 characters)"
+                                />
+                                <Input
+                                    label="Confirm New Password"
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Confirm new password"
+                                />
                             </div>
 
                             <div className="flex justify-end pt-6 border-t border-slate-100">
-                                <button
-                                    onClick={handleSave}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
+                                <Button
+                                    variant="primary"
+                                    color="bg-indigo-600"
+                                    icon={Shield}
+                                    disabled={!isPasswordValid || !currentPassword}
+                                    onClick={handlePasswordUpdate}
                                 >
-                                    <Shield className="w-4 h-4" />
                                     Update Password
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -283,46 +278,59 @@ export default function TeacherSettingsPage() {
                             <h2 className="text-xl font-bold text-slate-900">Notification Preferences</h2>
                             <p className="text-sm text-slate-500 mt-1 mb-8">Choose which notifications you want to receive.</p>
 
-                            <div className="flex flex-col divide-y divide-slate-100">
-                                {[
-                                    { title: 'New Messages', desc: 'Get notified when a student or staff member sends you a message.', value: newMessages, setter: setNewMessages },
-                                    { title: 'Late Submissions', desc: 'Email me when a student submits work after the deadline.', value: lateSubmissions, setter: setLateSubmissions },
-                                    { title: 'System Alerts', desc: 'Receive alerts about system maintenance and downtime.', value: systemAlerts, setter: setSystemAlerts },
-                                    { title: 'Weekly Digest', desc: 'Get a weekly summary of class activity and student performance.', value: weeklyDigest, setter: setWeeklyDigest },
-                                ].map((item) => (
-                                    <div key={item.title} className="flex items-center justify-between py-5">
-                                        <div className="flex flex-col pr-6">
-                                            <span className="text-sm font-bold text-slate-900">{item.title}</span>
-                                            <span className="text-sm text-slate-500 mt-0.5">{item.desc}</span>
-                                        </div>
-                                        <Toggle value={item.value} onChange={item.setter} />
-                                    </div>
-                                ))}
+                            <div className="space-y-1">
+                                <Toggle
+                                    label="New Messages"
+                                    description="Get notified when a student or staff member sends you a message."
+                                    checked={notifPrefs.newMessages}
+                                    onChange={(v) => setNotifPrefs(p => ({ ...p, newMessages: v }))}
+                                />
+                                <Toggle
+                                    label="Late Submissions"
+                                    description="Email me when a student submits work after the deadline."
+                                    checked={notifPrefs.lateSubmissions}
+                                    onChange={(v) => setNotifPrefs(p => ({ ...p, lateSubmissions: v }))}
+                                />
+                                <Toggle
+                                    label="System Alerts"
+                                    description="Receive alerts about system maintenance and downtime."
+                                    checked={notifPrefs.systemAlerts}
+                                    onChange={(v) => setNotifPrefs(p => ({ ...p, systemAlerts: v }))}
+                                />
+                                <Toggle
+                                    label="Weekly Digest"
+                                    description="Get a weekly summary of class activity and student performance."
+                                    checked={notifPrefs.weeklyDigest}
+                                    onChange={(v) => setNotifPrefs(p => ({ ...p, weeklyDigest: v }))}
+                                />
                             </div>
 
                             <div className="flex justify-end pt-6 mt-4 border-t border-slate-100">
-                                <button
-                                    onClick={handleSave}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
+                                <Button
+                                    variant="primary"
+                                    color="bg-indigo-600"
+                                    icon={Save}
+                                    onClick={handleSaveNotifications}
                                 >
-                                    <Save className="w-4 h-4" />
                                     Save Preferences
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
-                </div>
+                </Card>
             </div>
 
-            {/* Success Toast */}
-            {showToast && (
-                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-                    <div className="bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3">
-                        <Save className="w-5 h-5 text-green-400 shrink-0" />
-                        <span className="text-sm font-bold">Settings saved successfully!</span>
-                    </div>
-                </div>
-            )}
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={!!confirmAction}
+                title={confirmAction?.title ?? ''}
+                description={confirmAction?.description}
+                onConfirm={() => confirmAction?.onConfirm()}
+                onCancel={() => setConfirmAction(null)}
+            />
+
+            {/* Toast */}
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         </div>
     );
 }

@@ -32,109 +32,54 @@ export interface SubjectTheme {
   badgeText: string;
 }
 
-const subjectThemeMap: Record<string, SubjectTheme> = {
-  physics: {
-    bg: 'bg-blue-50',
-    text: 'text-blue-600',
-    progressFill: 'bg-blue-500',
-    borderL: 'border-l-blue-500',
-    border: 'border-blue-100',
-    headingText: 'text-blue-800',
-    badgeBg: 'bg-blue-100',
-    badgeText: 'text-blue-700',
-  },
-  'advanced math': {
-    bg: 'bg-orange-50',
-    text: 'text-orange-600',
-    progressFill: 'bg-orange-500',
-    borderL: 'border-l-orange-500',
-    border: 'border-orange-100',
-    headingText: 'text-orange-800',
-    badgeBg: 'bg-orange-100',
-    badgeText: 'text-orange-700',
-  },
-  math: {
-    bg: 'bg-orange-50',
-    text: 'text-orange-600',
-    progressFill: 'bg-orange-400',
-    borderL: 'border-l-orange-500',
-    border: 'border-orange-100',
-    headingText: 'text-orange-800',
-    badgeBg: 'bg-orange-100',
-    badgeText: 'text-orange-700',
-  },
-  'english literature': {
-    bg: 'bg-purple-50',
-    text: 'text-purple-600',
-    progressFill: 'bg-purple-500',
-    borderL: 'border-l-purple-500',
-    border: 'border-purple-100',
-    headingText: 'text-purple-800',
-    badgeBg: 'bg-purple-100',
-    badgeText: 'text-purple-700',
-  },
-  'english lit': {
-    bg: 'bg-purple-50',
-    text: 'text-purple-600',
-    progressFill: 'bg-purple-500',
-    borderL: 'border-l-purple-500',
-    border: 'border-purple-100',
-    headingText: 'text-purple-800',
-    badgeBg: 'bg-purple-100',
-    badgeText: 'text-purple-700',
-  },
-  english: {
-    bg: 'bg-purple-50',
-    text: 'text-purple-600',
-    progressFill: 'bg-purple-500',
-    borderL: 'border-l-purple-500',
-    border: 'border-purple-100',
-    headingText: 'text-purple-800',
-    badgeBg: 'bg-purple-100',
-    badgeText: 'text-purple-700',
-  },
-  chemistry: {
-    bg: 'bg-green-50',
-    text: 'text-green-600',
-    progressFill: 'bg-green-500',
-    borderL: 'border-l-green-500',
-    border: 'border-green-100',
-    headingText: 'text-green-800',
-    badgeBg: 'bg-green-100',
-    badgeText: 'text-green-700',
-  },
-  geography: {
-    bg: 'bg-red-50',
-    text: 'text-red-600',
-    progressFill: 'bg-red-500',
-    borderL: 'border-l-red-500',
-    border: 'border-red-100',
-    headingText: 'text-red-800',
-    badgeBg: 'bg-red-100',
-    badgeText: 'text-red-700',
-  },
-  history: {
-    bg: 'bg-teal-50',
-    text: 'text-teal-600',
-    progressFill: 'bg-teal-500',
-    borderL: 'border-l-teal-500',
-    border: 'border-teal-100',
-    headingText: 'text-teal-800',
-    badgeBg: 'bg-teal-100',
-    badgeText: 'text-teal-700',
-  },
-};
-
-const defaultTheme: SubjectTheme = {
-  bg: 'bg-slate-100',
-  text: 'text-slate-500',
+const slateTheme: SubjectTheme = {
+  bg: 'bg-slate-50',
+  text: 'text-slate-600',
   progressFill: 'bg-slate-500',
   borderL: 'border-l-slate-500',
   border: 'border-slate-200',
-  headingText: 'text-slate-800',
+  headingText: 'text-slate-900',
   badgeBg: 'bg-slate-100',
   badgeText: 'text-slate-700',
 };
+
+const purpleTheme: SubjectTheme = {
+  bg: 'bg-purple-50',
+  text: 'text-purple-600',
+  progressFill: 'bg-purple-500',
+  borderL: 'border-l-purple-500',
+  border: 'border-purple-200',
+  headingText: 'text-purple-900',
+  badgeBg: 'bg-purple-100',
+  badgeText: 'text-purple-700',
+};
+
+const emeraldTheme: SubjectTheme = {
+  bg: 'bg-emerald-50',
+  text: 'text-emerald-600',
+  progressFill: 'bg-emerald-500',
+  borderL: 'border-l-emerald-500',
+  border: 'border-emerald-200',
+  headingText: 'text-emerald-900',
+  badgeBg: 'bg-emerald-100',
+  badgeText: 'text-emerald-700',
+};
+
+const subjectThemeMap: Record<string, SubjectTheme> = {
+  physics: emeraldTheme,
+  chemistry: emeraldTheme,
+  biology: emeraldTheme,
+  'advanced math': purpleTheme,
+  math: purpleTheme,
+  art: purpleTheme,
+  'english literature': slateTheme,
+  'english lit': slateTheme,
+  english: slateTheme,
+  geography: slateTheme,
+  history: slateTheme,
+};
+
+const defaultTheme: SubjectTheme = slateTheme;
 
 /**
  * Returns a consistent Tailwind color theme for a given subject name.
