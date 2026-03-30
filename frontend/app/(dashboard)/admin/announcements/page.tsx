@@ -3,25 +3,14 @@
 import React, { useState } from 'react';
 import PageHeader from '@/components/layouts/PageHeader';
 import { Plus, X, Trash2, Info, AlertTriangle, AlertOctagon, CheckCircle2, Megaphone, Users, CalendarDays, ChevronDown } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import { useToast, ToastContainer } from '@/components/ui/Toast';
+
+import { getAnnouncements, AUDIENCES, Announcement, Severity, Status } from '@/lib/mock-data/admin';
 
 // --- Types ---
-type Severity = 'info' | 'warning' | 'urgent';
-type Status = 'active' | 'scheduled' | 'expired';
 type FilterTab = 'All' | 'Active' | 'Scheduled' | 'Expired';
-
-interface Announcement {
-    id: string;
-    title: string;
-    message: string;
-    severity: Severity;
-    audience: string;
-    startDate: string;
-    endDate: string;
-    status: Status;
-}
-
-// --- Constants ---
-const AUDIENCES = ['Global', 'All Teachers', 'All Students', 'Grade 10A', 'Grade 10B', 'Grade 11A', 'Grade 12A'];
 
 const SEVERITY_CONFIG: Record<Severity, { label: string; icon: React.ElementType; bg: string; border: string; text: string; badge: string }> = {
     info: { label: 'Info', icon: Info, bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-100 text-blue-700' },
@@ -50,36 +39,12 @@ const deriveStatus = (startDate: string, endDate: string): Status => {
     return 'scheduled';
 };
 
-// --- Mock Data ---
-const MOCK_ANNOUNCEMENTS: Announcement[] = [
-    {
-        id: 'ann_1', title: 'Water Main Break — Block B Closed',
-        message: 'Due to an emergency pipe burst, Block B classrooms (Room 201–210) are closed until further notice. All affected classes will be relocated to the library and auditorium.',
-        severity: 'urgent', audience: 'Global', startDate: '2026-03-17', endDate: '2026-03-20', status: 'active',
-    },
-    {
-        id: 'ann_2', title: 'Mr. Sok Absent — Substitute Assigned',
-        message: 'Mr. Sok will be absent on March 19. Ms. Chea will cover Grade 10A Mathematics and Grade 10B Physics.',
-        severity: 'warning', audience: 'Grade 10A', startDate: '2026-03-19', endDate: '2026-03-19', status: 'scheduled',
-    },
-    {
-        id: 'ann_3', title: 'Water Festival Holiday — School Closed',
-        message: 'School will be closed from April 13–16 for the Khmer New Year / Water Festival. Classes resume on April 17.',
-        severity: 'info', audience: 'Global', startDate: '2026-04-13', endDate: '2026-04-16', status: 'scheduled',
-    },
-    {
-        id: 'ann_4', title: 'Last Day for Semester 2 Registration',
-        message: 'All students must complete their Semester 2 elective registration by March 10. Late submissions will not be accepted.',
-        severity: 'info', audience: 'All Students', startDate: '2026-03-01', endDate: '2026-03-10', status: 'expired',
-    },
-];
-
 // --- Main Page ---
 export default function AdminAnnouncementsPage() {
-    const [announcements, setAnnouncements] = useState<Announcement[]>(MOCK_ANNOUNCEMENTS);
+    const [announcements, setAnnouncements] = useState<Announcement[]>(getAnnouncements());
     const [filterTab, setFilterTab] = useState<FilterTab>('All');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [toast, setToast] = useState({ show: false, msg: '' });
+    const { toasts, addToast, dismissToast } = useToast();
 
     // Form state
     const [form, setForm] = useState({
@@ -88,8 +53,7 @@ export default function AdminAnnouncementsPage() {
     });
 
     const triggerToast = (msg: string) => {
-        setToast({ show: true, msg });
-        setTimeout(() => setToast({ show: false, msg: '' }), 3500);
+        addToast('success', msg);
     };
 
     const openCreateModal = () => {
@@ -152,9 +116,9 @@ export default function AdminAnnouncementsPage() {
                         ))}
                     </div>
 
-                    <button onClick={openCreateModal} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm shrink-0">
-                        <Plus className="w-4 h-4" /> New Announcement
-                    </button>
+                    <Button onClick={openCreateModal} variant="primary" color="bg-indigo-600" icon={Plus}>
+                        New Announcement
+                    </Button>
                 </div>
 
                 {/* Announcement Cards */}
@@ -226,87 +190,76 @@ export default function AdminAnnouncementsPage() {
             </div>
 
             {/* ========== CREATE MODAL ========== */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
-                        {/* Header */}
-                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
-                            <h2 className="text-lg font-bold text-slate-900">New Announcement</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="New Announcement">
+                <div className="flex flex-col gap-5 max-h-[60vh] overflow-y-auto pr-2">
+                    {/* Title */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Title</label>
+                        <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Room 304 AC Broken" className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 shadow-sm" />
+                    </div>
+
+                    {/* Message */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Message</label>
+                        <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Describe the announcement details..." rows={3} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 shadow-sm resize-none" />
+                    </div>
+
+                    {/* Severity Radio */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Severity</label>
+                        <div className="flex gap-2">
+                            {(['info', 'warning', 'urgent'] as Severity[]).map(sev => {
+                                const cfg = SEVERITY_CONFIG[sev];
+                                const SIcon = cfg.icon;
+                                const isSelected = form.severity === sev;
+                                return (
+                                    <button key={sev} onClick={() => setForm({ ...form, severity: sev })} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${isSelected ? `${cfg.bg} ${cfg.border} ${cfg.text}` : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                        <SIcon className="w-4 h-4" /> {cfg.label}
+                                    </button>
+                                );
+                            })}
                         </div>
+                    </div>
 
-                        {/* Body */}
-                        <div className="p-6 flex flex-col gap-5 bg-slate-50/50 max-h-[70vh] overflow-y-auto">
+                    {/* Audience */}
+                    <div className="relative">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Audience</label>
+                        <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm">
+                            {AUDIENCES.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 bottom-3 w-4 h-4 text-slate-400 pointer-events-none" />
+                    </div>
 
-                            {/* Title */}
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Title</label>
-                                <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Room 304 AC Broken" className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 shadow-sm" />
-                            </div>
-
-                            {/* Message */}
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Message</label>
-                                <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Describe the announcement details..." rows={3} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 shadow-sm resize-none" />
-                            </div>
-
-                            {/* Severity Radio */}
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Severity</label>
-                                <div className="flex gap-2">
-                                    {(['info', 'warning', 'urgent'] as Severity[]).map(sev => {
-                                        const cfg = SEVERITY_CONFIG[sev];
-                                        const SIcon = cfg.icon;
-                                        const isSelected = form.severity === sev;
-                                        return (
-                                            <button key={sev} onClick={() => setForm({ ...form, severity: sev })} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${isSelected ? `${cfg.bg} ${cfg.border} ${cfg.text}` : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
-                                                <SIcon className="w-4 h-4" /> {cfg.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Audience */}
-                            <div className="relative">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Audience</label>
-                                <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm">
-                                    {AUDIENCES.map(a => <option key={a} value={a}>{a}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 bottom-3 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
-
-                            {/* Dates */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Start Date</label>
-                                    <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm" />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">End Date</label>
-                                    <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm" />
-                                </div>
-                            </div>
+                    {/* Dates */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Start Date</label>
+                            <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm" />
                         </div>
-
-                        {/* Footer */}
-                        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
-                            <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
-                            <button onClick={handleCreate} disabled={!form.title.trim() || !form.message.trim()} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-colors flex items-center gap-2">
-                                <Megaphone className="w-4 h-4" /> Publish Announcement
-                            </button>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">End Date</label>
+                            <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm" />
                         </div>
                     </div>
                 </div>
-            )}
+
+                {/* Footer */}
+                <div className="pt-6 mt-6 border-t border-slate-100 flex justify-end gap-3">
+                    <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                    <Button 
+                        variant="primary" 
+                        color="bg-indigo-600"
+                        onClick={handleCreate} 
+                        disabled={!form.title.trim() || !form.message.trim()} 
+                        icon={Megaphone}
+                    >
+                        Publish Announcement
+                    </Button>
+                </div>
+            </Modal>
 
             {/* Toast */}
-            {toast.show && (
-                <div className="fixed bottom-6 right-6 z-[60] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-in slide-in-from-bottom-5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span className="text-sm font-bold">{toast.msg}</span>
-                </div>
-            )}
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         </div>
     );
 }

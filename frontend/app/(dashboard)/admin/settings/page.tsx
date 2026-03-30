@@ -16,55 +16,26 @@ import {
   X
 } from "lucide-react";
 
+import { getGlobalSettings, Semester, Period } from '@/lib/mock-data/admin';
+import Button from '@/components/ui/Button';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import { useToast, ToastContainer } from '@/components/ui/Toast';
+
 type TabProps = "General" | "Calendar" | "Bell" | "Security";
-
-interface Semester {
-  id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-}
-
-interface Period {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  type: "Class" | "Break";
-}
 
 export default function GlobalSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabProps>("General");
-  const [showToast, setShowToast] = useState(false);
+  const { toasts, addToast, dismissToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  const mockData = getGlobalSettings();
+
   // --- State ---
-  const [generalInfo, setGeneralInfo] = useState({
-    schoolName: "Springfield High School",
-    email: "admin@springfieldhigh.edu",
-    phone: "+1 (555) 123-4567",
-    address: "123 Education Lane, Springfield, IL 62701",
-    language: "en-US",
-  });
-
-  const [semesters, setSemesters] = useState<Semester[]>([
-    { id: "1", name: "Fall 2026", startDate: "2026-08-20", endDate: "2026-12-18", isActive: true },
-    { id: "2", name: "Spring 2027", startDate: "2027-01-11", endDate: "2027-05-28", isActive: false },
-  ]);
-
-  const [periods, setPeriods] = useState<Period[]>([
-    { id: "1", name: "Homeroom", startTime: "08:00", endTime: "08:15", type: "Class" },
-    { id: "2", name: "Period 1", startTime: "08:20", endTime: "09:10", type: "Class" },
-    { id: "3", name: "Morning Break", startTime: "09:10", endTime: "09:25", type: "Break" },
-  ]);
-
-  const [systemAccess, setSystemAccess] = useState({
-    maintenanceMode: false,
-    allowStudentLogins: true,
-    emailNotifications: true
-  });
+  const [generalInfo, setGeneralInfo] = useState(mockData.generalInfo);
+  const [semesters, setSemesters] = useState<Semester[]>(mockData.semesters);
+  const [periods, setPeriods] = useState<Period[]>(mockData.periods);
+  const [systemAccess, setSystemAccess] = useState(mockData.systemAccess);
 
   // --- Handlers ---
   const handleSaveClick = () => {
@@ -74,7 +45,7 @@ export default function GlobalSettingsPage() {
   const handleConfirmSave = () => {
     setShowConfirmModal(false);
     setIsEditing(false); // Exit edit mode
-    setShowToast(true);
+    addToast('success', 'Settings Saved: Your system configurations have been updated.');
   };
 
   const handleCancelSave = () => {
@@ -85,12 +56,6 @@ export default function GlobalSettingsPage() {
     setIsEditing(false);
   };
 
-  useEffect(() => {
-    if (showToast) {
-      const timer = setTimeout(() => setShowToast(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showToast]);
 
   const handleSetActiveSemester = (id: string) => {
     setSemesters(prev => prev.map(s => ({
@@ -124,55 +89,18 @@ export default function GlobalSettingsPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 relative overflow-x-hidden">
 
-      {/* Toast Notification overlay */}
-      <div
-        className={`fixed top-6 right-6 z-50 transition-all duration-300 transform ${showToast ? "translate-y-0 opacity-100" : "-translate-y-12 opacity-0 pointer-events-none"
-          }`}
-      >
-        <div className="bg-white border border-emerald-200 shadow-lg shadow-emerald-100/50 rounded-2xl p-4 flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-          <div>
-            <h4 className="text-sm font-semibold text-slate-800">Settings Saved</h4>
-            <p className="text-xs text-slate-500 mt-0.5">Your system configurations have been updated.</p>
-          </div>
-        </div>
-      </div>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 shadow-xl w-full max-w-sm relative zoom-in-95 animate-in duration-200">
-            <button
-              onClick={handleCancelSave}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-4">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900">Save Changes?</h3>
-            <p className="text-sm text-slate-500 mt-2">
-              Are you sure you want to apply these system configurations? This may affect the entire platform.
-            </p>
-            <div className="mt-8 flex items-center justify-end gap-3">
-              <button
-                onClick={handleCancelSave}
-                className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmSave}
-                className="px-4 py-2 font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                Confirm & Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onCancel={handleCancelSave}
+        onConfirm={handleConfirmSave}
+        title="Save Changes?"
+        description="Are you sure you want to apply these system configurations? This may affect the entire platform."
+        confirmLabel="Confirm & Save"
+        cancelLabel="Cancel"
+      />
 
       {/* Sticky Header */}
       <PageHeader 
@@ -184,28 +112,17 @@ export default function GlobalSettingsPage() {
       <div className="max-w-7xl mx-auto px-8 flex justify-end">
         <div className="flex items-center gap-3">
           {!isEditing ? (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2 focus:ring-offset-slate-50"
-            >
-              <Edit2 className="w-4 h-4" />
+            <Button onClick={() => setIsEditing(true)} variant="outline" icon={Edit2}>
               Edit Settings
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                onClick={handleCancelEdit}
-                className="bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 px-5 py-2.5 rounded-xl font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-slate-200"
-              >
+              <Button onClick={handleCancelEdit} variant="outline">
                 Cancel
-              </button>
-              <button
-                onClick={handleSaveClick}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all shadow-sm shadow-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-50 animate-in slide-in-from-right-2 duration-300"
-              >
-                <Save className="w-4 h-4" />
+              </Button>
+              <Button onClick={handleSaveClick} variant="primary" color="bg-indigo-600" icon={Save}>
                 Save Changes
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -454,7 +371,7 @@ export default function GlobalSettingsPage() {
                       <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Start</th>
                       <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">End</th>
                       <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
-                      {isEditing && <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider w-12 text-center"></th>}
+                      <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider w-12 text-center"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -504,8 +421,8 @@ export default function GlobalSettingsPage() {
                             <option value="Break">Break</option>
                           </select>
                         </td>
-                        {isEditing && (
-                          <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right">
+                          {isEditing && (
                             <button
                               onClick={() => handleDeletePeriod(period.id)}
                               className="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 focus:opacity-100"
@@ -513,13 +430,13 @@ export default function GlobalSettingsPage() {
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
-                          </td>
-                        )}
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {periods.length === 0 && (
                       <tr>
-                        <td colSpan={isEditing ? 5 : 4} className="px-4 py-10 text-center text-slate-500 text-sm">
+                        <td colSpan={5} className="px-4 py-10 text-center text-slate-500 text-sm">
                           No periods defined. Enable Edit Mode and add a period.
                         </td>
                       </tr>

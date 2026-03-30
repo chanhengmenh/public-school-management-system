@@ -3,52 +3,20 @@
 import React, { useState } from 'react';
 import PageHeader from '@/components/layouts/PageHeader';
 import { Search, Plus, X, Users, BookOpen, MapPin, Clock, ChevronRight, Trash2, CheckSquare, ChevronDown, Edit2 } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import { useToast, ToastContainer } from '@/components/ui/Toast';
 
-// --- Types ---
-type ClassStatus = 'Active' | 'Draft';
-
-interface ClassRecord {
-    id: string;
-    courseCode: string;
-    subject: string;
-    section: string;
-    teacher: string | null;
-    enrolled: number;
-    capacity: number;
-    room: string;
-    schedule: string;
-    status: ClassStatus;
-}
-
-interface StudentRecord {
-    id: string;
-    name: string;
-    grade: string;
-}
-
-// --- Dummy Data ---
-const CLASSES_DATA: ClassRecord[] = [
-    { id: 'c1', courseCode: 'PHY-101', subject: 'Physics', section: '11A', teacher: 'Mr. Tan Wei', enrolled: 28, capacity: 32, room: 'Room 304', schedule: 'Mon/Wed/Fri 08:00 AM', status: 'Active' },
-    { id: 'c2', courseCode: 'MAT-201', subject: 'Advanced Math', section: '12B', teacher: 'Ms. Sarah Lee', enrolled: 30, capacity: 30, room: 'Room 210', schedule: 'Tue/Thu 10:00 AM', status: 'Active' },
-    { id: 'c3', courseCode: 'ENG-105', subject: 'Literature', section: '10A', teacher: null, enrolled: 15, capacity: 25, room: 'Room 105', schedule: 'Mon/Wed 01:00 PM', status: 'Draft' },
-    { id: 'c4', courseCode: 'HIS-102', subject: 'World History', section: '11B', teacher: 'Dr. Marcus Rivera', enrolled: 22, capacity: 28, room: 'Room 401', schedule: 'Tue/Fri 09:30 AM', status: 'Active' },
-    { id: 'c5', courseCode: 'CHE-301', subject: 'Chemistry Lab', section: '12A', teacher: 'Ms. Priya Nair', enrolled: 24, capacity: 24, room: 'Lab 2', schedule: 'Thu 02:00 PM', status: 'Active' },
-];
-
-const AVAILABLE_STUDENTS: StudentRecord[] = [
-    { id: 's1', name: 'Alex Johnson', grade: '11th Grade' },
-    { id: 's2', name: 'Emily Chen', grade: '11th Grade' },
-    { id: 's3', name: 'Michael Brown', grade: '10th Grade' },
-    { id: 's4', name: 'Sarah Wilson', grade: '12th Grade' },
-    { id: 's5', name: 'David Lee', grade: '11th Grade' },
-    { id: 's6', name: 'Jessica Taylor', grade: '10th Grade' },
-];
+import { getClassesData, ClassRecord, StudentRecord, ClassStatus, deriveClassStatus } from '@/lib/mock-data/admin';
 
 // --- Subcomponents ---
 
 export default function AdminClassesPage() {
+    const mockData = getClassesData();
+
     // --- State ---
-    const [classes, setClasses] = useState<ClassRecord[]>(CLASSES_DATA);
+    const [classes, setClasses] = useState<ClassRecord[]>(mockData.classes);
+    const availableStudents = mockData.availableStudents;
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClass, setSelectedClass] = useState<ClassRecord | null>(null);
     const [isCreating, setIsCreating] = useState(false);
@@ -71,7 +39,7 @@ export default function AdminClassesPage() {
     });
 
     // --- Toast State ---
-    const [toast, setToast] = useState<{ show: boolean; message: string; type?: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
+    const { toasts, addToast, dismissToast } = useToast();
 
     // --- Handlers ---
     const handleOpenEditModal = (cls: ClassRecord) => {
@@ -116,30 +84,26 @@ export default function AdminClassesPage() {
     const handleSaveClass = () => {
         if (!selectedClass) return;
 
-        const isDetailsComplete = !!(formData.courseCode.trim() && formData.subject.trim() && formData.section.trim());
-        const isTeacherComplete = !!formData.teacher;
-        const isPeopleComplete = formData.students && formData.students.length > 0;
-        const computedStatus = (isDetailsComplete && isTeacherComplete && isPeopleComplete) ? 'Active' : 'Draft';
+        const enrolledCount = formData.students && formData.students.length > 0 ? formData.students.length : selectedClass.enrolled;
+        const computedStatus = deriveClassStatus({ ...formData, students: enrolledCount });
 
         setClasses(prev => prev.map(c => 
             c.id === selectedClass.id ? { 
                 ...c, 
                 ...formData, // Apply all form edits (subject, courseCode, room, capacity, section, schedule)
                 teacher: formData.teacher || null,
-                enrolled: formData.students && formData.students.length > 0 ? formData.students.length : c.enrolled,
+                enrolled: enrolledCount,
                 status: computedStatus 
             } : c
         ));
 
-        setToast({ show: true, message: 'Class Updated Successfully', type: 'success' });
+        addToast('success', 'Class Updated Successfully');
         handleCloseModal();
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
     };
 
     const handleDeleteClass = (id: string) => {
         setClasses(prev => prev.filter(c => c.id !== id));
-        setToast({ show: true, message: 'Class Removed Successfully', type: 'error' });
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+        addToast('error', 'Class Removed Successfully');
     };
 
     const handleCreateClassSubmit = () => {
@@ -147,10 +111,7 @@ export default function AdminClassesPage() {
             return; // In a real app we'd show validation errors
         }
 
-        const isDetailsComplete = !!(formData.courseCode.trim() && formData.subject.trim() && formData.section.trim());
-        const isTeacherComplete = !!formData.teacher;
-        const isPeopleComplete = formData.students.length > 0;
-        const computedStatus = (isDetailsComplete && isTeacherComplete && isPeopleComplete) ? 'Active' : 'Draft';
+        const computedStatus = deriveClassStatus(formData);
 
         const newClass: ClassRecord = {
             id: `c${Date.now()}`,
@@ -166,10 +127,9 @@ export default function AdminClassesPage() {
         };
 
         setClasses(prev => [newClass, ...prev]);
-        setToast({ show: true, message: 'New Class Created Successfully', type: 'success' });
+        addToast('success', 'New Class Created Successfully');
         
         handleCloseModal();
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
     };
 
     // --- Filtering ---
@@ -206,13 +166,15 @@ export default function AdminClassesPage() {
                         />
                     </div>
 
-                    <button
+                    <Button
                         onClick={handleOpenCreateModal}
-                        className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
+                        variant="primary"
+                        color="bg-indigo-600"
+                        icon={Plus}
+                        className="w-full sm:w-auto"
                     >
-                        <Plus className="w-4 h-4" />
                         Create Class
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Data Table */}
@@ -323,140 +285,106 @@ export default function AdminClassesPage() {
             </div>
 
             {/* Unified Create/Edit Class Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={handleCloseModal}>
-                    <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                        
-                        {/* Header & Tabs Container */}
-                        <div className="shrink-0 flex flex-col bg-white">
-                            <div className="flex justify-between items-start p-8 pb-4">
-                                {modalMode === 'edit' ? (
-                                    <div className="flex items-center gap-4">
-                                        <span className="inline-block px-3 py-1 rounded bg-slate-100 text-sm font-bold text-slate-600">
-                                            {selectedClass?.courseCode || formData.courseCode}
-                                        </span>
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-slate-900 leading-tight">{selectedClass?.subject || formData.subject}</h2>
-                                            <p className="text-sm text-slate-500">Section {selectedClass?.section || formData.section}</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-slate-900 leading-tight">Create New Class</h2>
-                                        <p className="text-sm text-slate-500 mt-1">Provide details to establish a new section</p>
-                                    </div>
+            <Modal 
+                isOpen={isModalOpen} 
+                onClose={handleCloseModal} 
+                title={modalMode === 'edit' ? `Edit ${selectedClass?.subject || formData.subject}` : 'Create New Class'}
+            >
+                <div className="flex flex-col">
+                    <div className="flex items-center gap-8 border-b border-slate-100 mb-4 rounded-xl">
+                        {(['Details', 'Teacher', 'People'] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveModalTab(tab)}
+                                className={`pb-2 text-sm font-bold transition-colors relative cursor-pointer ${
+                                    activeModalTab === tab ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                {tab}
+                                {activeModalTab === tab && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-t-full" />
                                 )}
-                                <button 
-                                    onClick={handleCloseModal}
-                                    className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 rounded-full transition-colors self-start"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
+                            </button>
+                        ))}
+                    </div>
 
-                            <div className="flex items-center gap-8 px-8 border-b border-slate-100 mt-2">
-                                {(['Details', 'Teacher', 'People'] as const).map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveModalTab(tab)}
-                                        className={`pb-4 text-sm font-bold transition-colors relative cursor-pointer ${
-                                            activeModalTab === tab ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'
-                                        }`}
-                                    >
-                                        {tab}
-                                        {activeModalTab === tab && (
-                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-t-full" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Modal Content */}
-                        <div className="flex-1 overflow-y-auto p-8 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full min-h-[400px]">
-                            
-                            {/* --- Details Tab --- */}
-                            {activeModalTab === 'Details' && (
-                                <div className="flex flex-col h-full">
-                                    <div className="grid grid-cols-2 gap-x-6 gap-y-6">
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">
-                                                Course Code {modalMode === 'create' && <span className="text-red-500">*</span>}
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                placeholder={modalMode === 'create' ? "e.g. PHY-101" : ""}
-                                                value={formData.courseCode} 
-                                                onChange={(e) => setFormData({...formData, courseCode: e.target.value})} 
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 placeholder:text-slate-400" 
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">
-                                                Section {modalMode === 'create' && <span className="text-red-500">*</span>}
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                placeholder={modalMode === 'create' ? "e.g. 11A" : ""}
-                                                value={formData.section} 
-                                                onChange={(e) => setFormData({...formData, section: e.target.value})} 
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 placeholder:text-slate-400" 
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">
-                                                Subject Name {modalMode === 'create' && <span className="text-red-500">*</span>}
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                placeholder={modalMode === 'create' ? "e.g. Physics" : ""}
-                                                value={formData.subject} 
-                                                onChange={(e) => setFormData({...formData, subject: e.target.value})} 
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 placeholder:text-slate-400" 
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Room</label>
-                                            <input 
-                                                type="text" 
-                                                placeholder={modalMode === 'create' ? "e.g. Room 304" : ""}
-                                                value={formData.room} 
-                                                onChange={(e) => setFormData({...formData, room: e.target.value})} 
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 placeholder:text-slate-400" 
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Max Capacity</label>
-                                            <input 
-                                                type="number" 
-                                                placeholder={modalMode === 'create' ? "30" : ""}
-                                                value={formData.capacity} 
-                                                onChange={(e) => setFormData({...formData, capacity: parseInt(e.target.value) || 0})} 
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 placeholder:text-slate-400" 
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Schedule</label>
-                                            <input 
-                                                type="text" 
-                                                placeholder={modalMode === 'create' ? "e.g. Mon/Wed/Fri 08:00 AM" : ""}
-                                                value={formData.schedule} 
-                                                onChange={(e) => setFormData({...formData, schedule: e.target.value})} 
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 placeholder:text-slate-400" 
-                                            />
-                                        </div>
+                    <div className="max-h-[50vh] overflow-y-auto pr-2">
+                        {activeModalTab === 'Details' && (
+                            <div className="flex flex-col h-full">
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-6">
+                                    {/* courseCode, section, subject, room, capacity, schedule */}
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">
+                                            Course Code {modalMode === 'create' && <span className="text-red-500">*</span>}
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.courseCode} 
+                                            onChange={(e) => setFormData({...formData, courseCode: e.target.value})} 
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">
+                                            Section {modalMode === 'create' && <span className="text-red-500">*</span>}
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.section} 
+                                            onChange={(e) => setFormData({...formData, section: e.target.value})} 
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" 
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">
+                                            Subject Name {modalMode === 'create' && <span className="text-red-500">*</span>}
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.subject} 
+                                            onChange={(e) => setFormData({...formData, subject: e.target.value})} 
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Room</label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.room} 
+                                            onChange={(e) => setFormData({...formData, room: e.target.value})} 
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Max Capacity</label>
+                                        <input 
+                                            type="number" 
+                                            value={formData.capacity} 
+                                            onChange={(e) => setFormData({...formData, capacity: parseInt(e.target.value) || 0})} 
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" 
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Schedule</label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.schedule} 
+                                            onChange={(e) => setFormData({...formData, schedule: e.target.value})} 
+                                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" 
+                                        />
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {/* --- Teacher Tab --- */}
-                            {activeModalTab === 'Teacher' && (
-                                <div className="flex flex-col h-full">
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Assign Primary Teacher</h3>
+                        {activeModalTab === 'Teacher' && (
+                            <div className="flex flex-col h-full">
+                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Assign Primary Teacher</h3>
+                                <div className="relative">
                                     <select
                                         value={formData.teacher}
                                         onChange={(e) => setFormData({...formData, teacher: e.target.value})}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E')] bg-[length:20px] bg-[right_16px_center] bg-no-repeat"
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 appearance-none"
                                     >
                                         <option value="" disabled>Select a teacher...</option>
                                         <option value="Mr. Tan Wei">Mr. Tan Wei</option>
@@ -464,115 +392,89 @@ export default function AdminClassesPage() {
                                         <option value="Dr. Marcus Rivera">Dr. Marcus Rivera</option>
                                         <option value="Ms. Priya Nair">Ms. Priya Nair</option>
                                     </select>
+                                    <ChevronDown className="absolute right-4 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {/* --- People Tab --- */}
-                            {activeModalTab === 'People' && (
-                                <div className="flex flex-col h-full">
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">
-                                        {modalMode === 'create' ? 'Enroll Initial Students' : 'Enroll Students'}
-                                    </h3>
+                        {activeModalTab === 'People' && (
+                            <div className="flex flex-col h-full">
+                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">
+                                    {modalMode === 'create' ? 'Enroll Initial Students' : 'Enroll Students'}
+                                </h3>
+                                <div className="relative mb-4">
                                     <select 
                                         value={studentFilter}
                                         onChange={(e) => setStudentFilter(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium text-slate-900 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E')] bg-[length:20px] bg-[right_16px_center] bg-no-repeat"
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 appearance-none"
                                     >
                                         <option value="All Grades">All Grades</option>
                                         <option value="10th Grade">10th Grade</option>
                                         <option value="11th Grade">11th Grade</option>
                                         <option value="12th Grade">12th Grade</option>
                                     </select>
-                                    
-                                    <div className="border border-slate-200 rounded-xl overflow-y-auto max-h-64 flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
-                                        {AVAILABLE_STUDENTS.filter(s => studentFilter === 'All Grades' || s.grade === studentFilter).map(student => (
-                                            <label key={student.id} className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 last:border-b-0">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={formData.students.includes(student.id)} 
-                                                    onChange={(e) => {
-                                                        const checked = e.target.checked;
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            students: checked 
-                                                                ? [...prev.students!, student.id]
-                                                                : prev.students!.filter(id => id !== student.id)
-                                                        }));
-                                                    }}
-                                                    className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" 
-                                                />
-                                                <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
-                                                    {student.name.split(' ').map(n => n[0]).join('')}
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-slate-900">{student.name}</span>
-                                                    <span className="text-xs font-medium text-slate-500">{student.grade}</span>
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
+                                    <ChevronDown className="absolute right-4 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="p-8 pt-4 border-t border-slate-100 flex justify-end items-center gap-4 bg-white shrink-0">
-                            {activeModalTab !== 'Details' && (
-                                <button onClick={() => setActiveModalTab(activeModalTab === 'Teacher' ? 'Details' : 'Teacher')} className="px-6 py-3 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center gap-1.5">
-                                    {'<'} Previous
-                                </button>
-                            )}
-                            
-                            {activeModalTab === 'Details' && (
-                                <button onClick={() => setActiveModalTab('Teacher')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-sm transition-colors flex items-center justify-center gap-2 sm:w-auto w-full">
-                                    Next &gt;
-                                </button>
-                            )}
-
-                            {activeModalTab === 'Teacher' && (
-                                <button onClick={() => setActiveModalTab('People')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-sm transition-colors sm:w-auto w-full">
-                                    Next &gt;
-                                </button>
-                            )}
-
-                            {activeModalTab === 'People' && (
-                                modalMode === 'edit' ? (
-                                    <button onClick={handleSaveClass} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold shadow-sm transition-colors sm:w-auto w-full">
-                                        Save Changes
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={handleCreateClassSubmit}
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold shadow-sm transition-colors sm:w-auto w-full"
-                                    >
-                                        Save & Create Class
-                                    </button>
-                                )
-                            )}
-                        </div>
+                                
+                                <div className="border border-slate-200 rounded-xl flex flex-col">
+                                    {availableStudents.filter(s => studentFilter === 'All Grades' || s.grade === studentFilter).map(student => (
+                                        <label key={student.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 last:border-b-0">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={formData.students.includes(student.id)} 
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        students: checked 
+                                                            ? [...prev.students!, student.id]
+                                                            : prev.students!.filter(id => id !== student.id)
+                                                    }));
+                                                }}
+                                                className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" 
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-slate-900">{student.name}</span>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                </div>
-            )}
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end gap-3">
+                        {activeModalTab !== 'Details' && (
+                            <Button 
+                                variant="secondary" 
+                                onClick={() => setActiveModalTab(activeModalTab === 'Teacher' ? 'Details' : 'Teacher')} 
+                            >
+                                Previous
+                            </Button>
+                        )}
+                        
+                        {activeModalTab === 'Details' && (
+                            <Button variant="primary" color="bg-indigo-600" onClick={() => setActiveModalTab('Teacher')}>
+                                Next
+                            </Button>
+                        )}
 
-            {/* ========== SUCCESS TOAST ========== */}
-            {toast.show && (
-                <div className={`fixed bottom-6 right-6 z-[60] animate-[slideUp_0.3s_ease-out] flex items-center justify-center text-white px-6 py-3.5 rounded-xl shadow-lg ${toast.type === 'error' ? 'bg-red-500 shadow-red-500/30' : 'bg-emerald-600 shadow-emerald-500/30'}`}>
-                    <p className="text-sm font-bold">{toast.message}</p>
-                </div>
-            )}
+                        {activeModalTab === 'Teacher' && (
+                            <Button variant="primary" color="bg-indigo-600" onClick={() => setActiveModalTab('People')}>
+                                Next
+                            </Button>
+                        )}
 
-            {/* Animation Styles */}
-            <style jsx>{`
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); }
-                    to { transform: translateX(0); }
-                }
-                @keyframes slideUp {
-                    from { opacity: 0; transform: translateY(16px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
+                        {activeModalTab === 'People' && (
+                            <Button variant="primary" color="bg-indigo-600" onClick={modalMode === 'edit' ? handleSaveClass : handleCreateClassSubmit}>
+                                {modalMode === 'edit' ? 'Save Changes' : 'Create Class'}
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         </div>
     );
 }

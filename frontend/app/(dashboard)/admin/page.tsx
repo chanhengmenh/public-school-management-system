@@ -3,6 +3,7 @@
 import React from 'react';
 import PageHeader from '@/components/layouts/PageHeader';
 import Link from 'next/link';
+import Card from '@/components/ui/Card';
 
 import {
     Users,
@@ -24,106 +25,10 @@ import {
     Settings,
 } from 'lucide-react';
 
-// --- KPI Data ---
-const kpiData = [
-    {
-        title: 'Total Students',
-        value: '1,245',
-        trend: '+12 this month',
-        trendColor: 'text-emerald-600',
-        icon: Users,
-        iconBg: 'bg-blue-50',
-        iconColor: 'text-blue-600',
-        borderAccent: 'border-t-blue-500',
-    },
-    {
-        title: 'Total Teachers',
-        value: '84',
-        trend: '+3 this month',
-        trendColor: 'text-emerald-600',
-        icon: GraduationCap,
-        iconBg: 'bg-violet-50',
-        iconColor: 'text-violet-600',
-        borderAccent: 'border-t-violet-500',
-    },
-    {
-        title: 'Active Classes',
-        value: '112',
-        trend: '+8 this semester',
-        trendColor: 'text-emerald-600',
-        icon: BookOpen,
-        iconBg: 'bg-amber-50',
-        iconColor: 'text-amber-600',
-        borderAccent: 'border-t-amber-500',
-    },
-    {
-        title: 'System Health',
-        value: '99.9%',
-        trend: 'Uptime · All systems go',
-        trendColor: 'text-emerald-600',
-        icon: ShieldCheck,
-        iconBg: 'bg-emerald-50',
-        iconColor: 'text-emerald-600',
-        borderAccent: 'border-t-emerald-500',
-    },
-];
-
-// --- Recent Activity Data ---
-type ActivityType = 'enrollment' | 'security' | 'class' | 'system' | 'grade';
-
-const activityData: {
-    id: number;
-    type: ActivityType;
-    text: string;
-    timestamp: string;
-    status: 'success' | 'warning' | 'info';
-}[] = [
-        {
-            id: 1,
-            type: 'enrollment',
-            text: 'New student enrolled: John Doe (Grade 10)',
-            timestamp: '5 mins ago',
-            status: 'success',
-        },
-        {
-            id: 2,
-            type: 'security',
-            text: 'Teacher password reset requested: Ms. Sarah Lee',
-            timestamp: '23 mins ago',
-            status: 'warning',
-        },
-        {
-            id: 3,
-            type: 'class',
-            text: 'New class created: Advanced Biology (Grade 12)',
-            timestamp: '1 hour ago',
-            status: 'info',
-        },
-        {
-            id: 4,
-            type: 'grade',
-            text: 'Grade report published: Physics 11A Mid-Term',
-            timestamp: '2 hours ago',
-            status: 'success',
-        },
-        {
-            id: 5,
-            type: 'enrollment',
-            text: 'Student transfer processed: Emily Chen → Grade 11B',
-            timestamp: '3 hours ago',
-            status: 'info',
-        },
-        {
-            id: 6,
-            type: 'system',
-            text: 'System backup completed successfully',
-            timestamp: '5 hours ago',
-            status: 'success',
-        },
-    ];
+import { getAdminDashboardData, ActivityType } from '@/lib/mock-data/admin';
 
 // --- Activity Icon Config ---
-const activityConfig: Record<ActivityType, { icon: typeof Users; bg: string; text: string }> = {
+const activityConfig: Record<ActivityType, { icon: any; bg: string; text: string }> = {
     enrollment: { icon: UserCheck, bg: 'bg-blue-100', text: 'text-blue-600' },
     security: { icon: ShieldCheck, bg: 'bg-amber-100', text: 'text-amber-600' },
     class: { icon: BookOpen, bg: 'bg-violet-100', text: 'text-violet-600' },
@@ -138,29 +43,8 @@ const statusDot: Record<string, string> = {
     info: 'bg-blue-500',
 };
 
-// --- Pending Requests Data ---
-const pendingRequests = [
-    {
-        id: 1,
-        text: '3 Teachers awaiting account approval',
-        icon: UserPlus,
-        severity: 'text-amber-700',
-    },
-    {
-        id: 2,
-        text: '1 System update pending installation',
-        icon: AlertCircle,
-        severity: 'text-red-700',
-    },
-    {
-        id: 3,
-        text: '5 Student transfers need review',
-        icon: Users,
-        severity: 'text-amber-700',
-    },
-];
-
 export default function AdminDashboardPage() {
+    const { kpiData, activityData, pendingRequests } = getAdminDashboardData();
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             <PageHeader 
@@ -176,9 +60,10 @@ export default function AdminDashboardPage() {
                     {kpiData.map((kpi) => {
                         const Icon = kpi.icon;
                         return (
-                            <div
+                            <Card
                                 key={kpi.title}
-                                className={`bg-white rounded-2xl border border-slate-200 p-6 shadow-sm border-t-4 ${kpi.borderAccent} hover:shadow-md transition-shadow`}
+                                hoverable
+                                className={`p-6 border-t-4 ${kpi.borderAccent}`}
                             >
                                 <div className="flex items-center justify-between mb-4">
                                     <div className={`w-11 h-11 rounded-xl ${kpi.iconBg} ${kpi.iconColor} flex items-center justify-center`}>
@@ -194,7 +79,7 @@ export default function AdminDashboardPage() {
                                     <TrendingUp className={`w-3.5 h-3.5 ${kpi.trendColor}`} />
                                     <span className={`text-xs font-semibold ${kpi.trendColor}`}>{kpi.trend}</span>
                                 </div>
-                            </div>
+                            </Card>
                         );
                     })}
                 </div>
@@ -203,7 +88,7 @@ export default function AdminDashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                     {/* --- Left: Recent System Activity (2/3) --- */}
-                    <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full">
+                    <Card className="lg:col-span-2 flex flex-col h-full overflow-hidden">
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
                             <div className="flex items-center gap-3">
@@ -262,13 +147,13 @@ export default function AdminDashboardPage() {
                                 );
                             })}
                         </div>
-                    </div>
+                    </Card>
 
                     {/* --- Right: Quick Actions + Alerts (1/3) --- */}
                     <div className="flex flex-col gap-6">
 
                         {/* Block 1: Quick Actions */}
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                        <Card className="p-6">
                             <div className="flex items-center gap-2 mb-5">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                                     <Plus className="w-4 h-4" />
@@ -295,10 +180,10 @@ export default function AdminDashboardPage() {
                                     Broadcast Announcement
                                 </button>
                             </div>
-                        </div>
+                        </Card>
 
                         {/* Block 2: Pending Requests / System Alerts */}
-                        <div className="bg-amber-50/60 rounded-2xl border border-amber-200 shadow-sm p-6">
+                        <Card className="p-6 bg-amber-50/60 border-amber-200 shadow-sm">
                             <div className="flex items-center gap-2 mb-5">
                                 <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
                                     <AlertCircle className="w-4 h-4" />
@@ -329,12 +214,12 @@ export default function AdminDashboardPage() {
                                     );
                                 })}
                             </div>
-                        </div>
+                        </Card>
                     </div>
                 </div>
 
                 {/* ====== BOTTOM SECTION: SUMMARY BAR ====== */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <Card className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
                             <CheckCircle2 className="w-5 h-5" />
@@ -351,7 +236,7 @@ export default function AdminDashboardPage() {
                         System Status
                         <ArrowUpRight className="w-3.5 h-3.5" />
                     </Link>
-                </div>
+                </Card>
             </div>
         </div>
     );
