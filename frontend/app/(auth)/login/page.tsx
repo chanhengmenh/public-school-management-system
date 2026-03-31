@@ -3,37 +3,41 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ChevronDown } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { authenticateUser } from '@/lib/mock-data/auth';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
 
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState('student');
-    const [subRole, setSubRole] = useState('normal');
-    const [studentId, setStudentId] = useState('alex_id');
     const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        const user = await authenticateUser(email, password);
+
+        if (!user) {
+            setError('Invalid email or password');
+            setIsLoading(false);
+            return;
+        }
+
         // Set the mock authentication cookie for the middleware to read
-        document.cookie = `mock_role=${role}; path=/; max-age=86400`;
-        document.cookie = `mock_sub_role=${subRole}; path=/; max-age=86400`;
-        if (role === 'student') {
-            document.cookie = `mock_student_id=${studentId}; path=/; max-age=86400`;
+        document.cookie = `mock_role=${user.role}; path=/; max-age=86400`;
+        document.cookie = `mock_sub_role=${user.subRole}; path=/; max-age=86400`;
+        if (user.role === 'student') {
+            document.cookie = `mock_student_id=${user.id}; path=/; max-age=86400`;
         }
 
         // Trigger the redirect
-        if (role === 'admin') router.push('/admin');
-        else if (role === 'teacher') router.push('/teacher');
-        else router.push('/student');
-    };
-
-    const renderRoleIcon = () => {
-        if (role === 'student') return <GraduationCap className="h-4 w-4 text-slate-400" />;
-        if (role === 'teacher') return <User className="h-4 w-4 text-slate-400" />;
-        if (role === 'admin') return <Shield className="h-4 w-4 text-slate-400" />;
-        return <User className="h-4 w-4 text-slate-400" />;
+        router.push(`/${user.role}`);
     };
 
     return (
@@ -45,115 +49,33 @@ export default function LoginPage() {
 
             <div className="relative z-10 w-full max-w-md p-8 sm:p-10 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-10">
-                    <h2 className="text-4xl font-serif font-bold text-white mb-2 tracking-tight">Login</h2>
+                    <h2 className="text-4xl font-bold text-white mb-2 tracking-tight">Login</h2>
                     <p className="text-slate-400 text-sm">Enter your credentials to access your dashboard</p>
                 </div>
 
+                {error && (
+                    <div className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm text-center">
+                        {error}
+                    </div>
+                )}
+
                 <form onSubmit={handleLogin} className="space-y-6">
-                    {/* Sign In As */}
-                    <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
-                            Sign In As
-                        </label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                {renderRoleIcon()}
-                            </div>
-                            <select
-                                value={role}
-                                onChange={(e) => {
-                                    setRole(e.target.value);
-                                    setSubRole('normal');
-                                }}
-                                className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
-                            >
-                                <option value="student">Student</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Sub Role */}
-                    <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
-                            🧪 Test Environment: Select Sub-Role
-                        </label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <Shield className="h-4 w-4 text-slate-400" />
-                            </div>
-                            <select
-                                value={subRole}
-                                onChange={(e) => setSubRole(e.target.value)}
-                                className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
-                            >
-                                {role === 'student' && (
-                                    <>
-                                        <option value="normal">Normal</option>
-                                        <option value="monitor">Class Monitor</option>
-                                    </>
-                                )}
-                                {role === 'teacher' && (
-                                    <>
-                                        <option value="normal">Subject Teacher</option>
-                                        <option value="home_teacher">Home-Class Teacher</option>
-                                    </>
-                                )}
-                                {role === 'admin' && (
-                                    <option value="normal">Normal</option>
-                                )}
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Student Identity */}
-                    {role === 'student' && (
-                        <div className="space-y-2">
-                            <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
-                                🧪 Test Environment: Select Student
-                            </label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <User className="h-4 w-4 text-slate-400" />
-                                </div>
-                                <select
-                                    value={studentId}
-                                    onChange={(e) => setStudentId(e.target.value)}
-                                    className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
-                                >
-                                    <option value="alex_id">Alex (Grade 11)</option>
-                                    <option value="sarah_id">Sarah (Grade 10)</option>
-                                </select>
-                                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
-                                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Email Address */}
                     <div className="space-y-2">
                         <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
                             Email Address
                         </label>
                         <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
                                 <Mail className="h-4 w-4 text-slate-400" />
                             </div>
-                            <input
+                            <Input
                                 type="email"
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@school.edu"
-                                className="block w-full pl-10 pr-3.5 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors text-sm"
+                                className="!pl-10 !pr-3.5 !py-3 !bg-slate-900/50 !border-slate-700 !text-white placeholder:!text-slate-500 focus:!ring-1 focus:!ring-amber-500 focus:!border-amber-500 text-sm"
                             />
                         </div>
                     </div>
@@ -164,21 +86,21 @@ export default function LoginPage() {
                             Password
                         </label>
                         <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
                                 <Lock className="h-4 w-4 text-slate-400" />
                             </div>
-                            <input
+                            <Input
                                 type={showPassword ? 'text' : 'password'}
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Enter your password"
-                                className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors text-sm"
+                                className="!pl-10 !pr-10 !py-3 !bg-slate-900/50 !border-slate-700 !text-white placeholder:!text-slate-500 focus:!ring-1 focus:!ring-amber-500 focus:!border-amber-500 text-sm"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white transition-colors"
+                                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white transition-colors z-10"
                                 aria-label={showPassword ? "Hide password" : "Show password"}
                             >
                                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -197,12 +119,13 @@ export default function LoginPage() {
                     </div>
 
                     {/* Submit Button */}
-                    <button
+                    <Button
                         type="submit"
-                        className="w-full flex items-center justify-center py-3.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 focus:ring-offset-slate-900 mt-6 text-sm"
+                        isLoading={isLoading}
+                        className="w-full flex items-center justify-center !py-3.5 !px-4 !bg-amber-500 hover:!bg-amber-400 !text-slate-900 font-bold rounded-lg transition-colors focus:!outline-none focus:!ring-2 focus:!ring-offset-2 focus:!ring-amber-500 focus:!ring-offset-slate-900 mt-6 text-sm"
                     >
-                        <span>Sign In &rarr;</span>
-                    </button>
+                        <span>{isLoading ? 'Signing In...' : 'Sign In \u2192'}</span>
+                    </Button>
                 </form>
 
                 <div className="mt-8 text-center text-xs text-slate-400">

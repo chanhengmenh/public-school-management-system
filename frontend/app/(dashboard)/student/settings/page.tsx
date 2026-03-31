@@ -246,7 +246,7 @@ export default function SettingsPage() {
                         {/* Right: Content */}
                         <div className="col-span-1 md:col-span-3">
                             <Card className="p-6 sm:p-8">
-                                <h2 className="text-xl font-bold text-slate-900 mb-6 font-serif">
+                                <h2 className="text-xl font-bold text-slate-900 mb-6">
                                     {activeTab === 'profile' && 'Personal Information'}
                                     {activeTab === 'security' && 'Change Password'}
                                     {activeTab === 'notifications' && 'Communication Preferences'}

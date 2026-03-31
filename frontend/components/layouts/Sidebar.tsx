@@ -204,7 +204,7 @@ export default function Sidebar({ role }: SidebarProps) {
               <LogoIcon className={`${theme.logoColor} h-6 w-6`} />
             </div>
             <div className="ml-3 flex flex-col min-w-0 overflow-hidden">
-              <span className="text-white text-xl font-bold font-serif tracking-tight whitespace-nowrap overflow-hidden">
+              <span className="text-white text-xl font-bold tracking-tight whitespace-nowrap overflow-hidden">
                 EduSchool
               </span>
               <span className={`text-[10px] ${theme.logoColor.replace('text-', 'text-').replace('500', '400')} tracking-wider font-sans uppercase`}>

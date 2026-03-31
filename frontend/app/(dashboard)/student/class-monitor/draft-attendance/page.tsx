@@ -59,7 +59,7 @@ export default function DraftAttendancePage() {
 
                     {/* Session Details */}
                     <Card className="p-6 sm:p-8 mb-8">
-                        <h2 className="text-lg font-bold text-slate-900 mb-6 font-serif">Session Details</h2>
+                        <h2 className="text-lg font-bold text-slate-900 mb-6">Session Details</h2>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="space-y-2">
@@ -104,7 +104,7 @@ export default function DraftAttendancePage() {
 
                     {/* Student Roster */}
                     <div className="mb-8">
-                        <h2 className="text-lg font-bold text-slate-900 mb-4 font-serif px-2">Student Roster</h2>
+                        <h2 className="text-lg font-bold text-slate-900 mb-4 px-2">Student Roster</h2>
 
                         <div className="flex flex-col gap-3">
                             {students.map((student) => (

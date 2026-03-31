@@ -252,7 +252,7 @@ export default function QuizCreatorWizard() {
                     <Link href={`/teacher/classes/${subjectId || ''}/quizzes`} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
                         <ArrowLeft className="w-4 h-4" />
                     </Link>
-                    <h1 className="text-lg font-bold font-serif text-slate-900 truncate" title={quizSettings.title || 'Untitled Quiz'}>
+                    <h1 className="text-lg font-bold text-slate-900 truncate" title={quizSettings.title || 'Untitled Quiz'}>
                         {quizSettings.title || 'Untitled Quiz'}
                     </h1>
                 </div>
@@ -335,7 +335,7 @@ export default function QuizCreatorWizard() {
             {/* Left Col */}
             <div className="lg:col-span-2 flex flex-col gap-6">
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <h2 className="text-xl font-bold font-serif text-slate-900 mb-5">Quiz Details</h2>
+                    <h2 className="text-xl font-bold text-slate-900 mb-5">Quiz Details</h2>
                     <div className="flex flex-col gap-5">
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-bold text-slate-700">Quiz Title <span className="text-red-500">*</span></label>
@@ -384,7 +384,7 @@ export default function QuizCreatorWizard() {
 
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <div className="flex justify-between items-center mb-5">
-                        <h2 className="text-xl font-bold font-serif text-slate-900">Assign Classes</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Assign Classes</h2>
                         <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">{quizSettings.assignedClasses.length} Selected</span>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -411,7 +411,7 @@ export default function QuizCreatorWizard() {
             {/* Right Col */}
             <div className="lg:col-span-1 flex flex-col gap-6">
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <h2 className="text-lg font-bold font-serif text-slate-900 mb-5 flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-slate-900 mb-5 flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-indigo-500" /> Timing
                     </h2>
                     <div className="flex flex-col gap-4">
@@ -453,7 +453,7 @@ export default function QuizCreatorWizard() {
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <h2 className="text-lg font-bold font-serif text-slate-900 mb-5 flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-slate-900 mb-5 flex items-center gap-2">
                         <Settings2 className="w-5 h-5 text-indigo-500" /> Advanced Options
                     </h2>
                     <div className="flex flex-col gap-4">
@@ -640,7 +640,7 @@ export default function QuizCreatorWizard() {
                 <div className="sticky top-24 flex flex-col gap-4">
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="bg-slate-900 p-4 text-center">
-                            <h3 className="text-white font-bold font-serif text-lg">Quiz Summary</h3>
+                            <h3 className="text-white font-bold text-lg">Quiz Summary</h3>
                         </div>
                         <div className="p-5 flex flex-col gap-5">
                             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -684,7 +684,7 @@ export default function QuizCreatorWizard() {
                     </div>
 
                     <div className="relative z-10">
-                        <h2 className="text-3xl font-bold font-serif text-slate-900 mb-2">{quizSettings.title || 'Untitled Quiz'}</h2>
+                        <h2 className="text-3xl font-bold text-slate-900 mb-2">{quizSettings.title || 'Untitled Quiz'}</h2>
                         <div className="flex items-center gap-3 text-sm font-bold text-indigo-600 mb-6">
                             <span>{quizSettings.subject || 'No Subject'}</span>
                             <span className="w-1 h-1 rounded-full bg-slate-300"></span>
@@ -753,7 +753,7 @@ export default function QuizCreatorWizard() {
             {/* Right Col: Checklist & Publish */}
             <div className="lg:col-span-1 flex flex-col gap-6">
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <h3 className="text-lg font-bold font-serif text-slate-900 mb-4 border-b border-slate-100 pb-3">Pre-Publish Checklist</h3>
+                    <h3 className="text-lg font-bold text-slate-900 mb-4 border-b border-slate-100 pb-3">Pre-Publish Checklist</h3>
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-3">
                             {hasTitle ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <Circle className="w-5 h-5 text-slate-300 shrink-0" />}
@@ -851,7 +851,7 @@ export default function QuizCreatorWizard() {
                         <div className="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
                             <div className="flex flex-col">
                                 <span className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" /> Student Preview Mode</span>
-                                <h2 className="text-xl font-bold font-serif text-slate-900 mt-1">{quizSettings.title || 'Untitled Quiz'}</h2>
+                                <h2 className="text-xl font-bold text-slate-900 mt-1">{quizSettings.title || 'Untitled Quiz'}</h2>
                             </div>
                             <button onClick={() => setIsPreviewOpen(false)} className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                                 <X className="w-5 h-5" />
@@ -921,7 +921,7 @@ export default function QuizCreatorWizard() {
                         <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
                             <Zap className="w-10 h-10 text-indigo-600" />
                         </div>
-                        <h2 className="text-2xl font-bold font-serif text-slate-900 mb-2">Publish Quiz?</h2>
+                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Publish Quiz?</h2>
                         <p className="text-sm text-slate-600 mb-6">You are about to publish <strong>&quot;{quizSettings.title}&quot;</strong> to {quizSettings.assignedClasses.length} assigned classes.</p>
 
                         <div className="w-full bg-slate-50 rounded-xl p-4 flex flex-col gap-3 mb-8 text-left border border-slate-100">

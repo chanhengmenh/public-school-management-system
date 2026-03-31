@@ -2,26 +2,32 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { ROLES, ROLE_REDIRECTS } from './lib/constants';
 
 export function proxy(request: NextRequest) {
-    // 🛑 TEMPORARY BYPASS: Allow all traffic for UI development
-    return NextResponse.next();
-
     const url = request.nextUrl.clone();
     const path = url.pathname;
 
-    // 1. Define route rules
+    // 1. MOCK AUTHENTICATION: Read fake cookie
+    const userRole = request.cookies.get('mock_role')?.value;
+
+    // 2. Smart Root Redirect
+    if (path === '/') {
+        if (userRole) {
+            const dashboard = ROLE_REDIRECTS[userRole as keyof typeof ROLE_REDIRECTS] || '/login';
+            return NextResponse.redirect(new URL(dashboard, request.url));
+        }
+        return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // 3. Define route rules
     const isAuthRoute = path.startsWith('/login') || path.startsWith('/forgot-password');
     const isProtectedRoute = path.startsWith('/admin') || path.startsWith('/teacher') || path.startsWith('/student');
 
-    // 2. MOCK AUTHENTICATION: Read fake cookie
-    const userRole = request.cookies.get('mock_role')?.value;
-
-    // 3. Handle Unauthenticated Users
+    // 4. Handle Unauthenticated Users
     if (!userRole && isProtectedRoute) {
         url.pathname = '/login';
         return NextResponse.redirect(url);
     }
 
-    // 4. Handle Authenticated Users
+    // 5. Handle Authenticated Users
     if (userRole) {
         if (isAuthRoute) {
             url.pathname = ROLE_REDIRECTS[userRole as keyof typeof ROLE_REDIRECTS] || '/login';

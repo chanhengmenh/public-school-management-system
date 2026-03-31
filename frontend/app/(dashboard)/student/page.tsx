@@ -94,7 +94,7 @@ export default function StudentDashboardPage() {
                     {/* Monitor Quick Action */}
                     {isMonitor && (
                         <Card className="p-6 mt-6 border-indigo-200 bg-indigo-50/50">
-                            <h2 className="text-xl font-serif font-bold text-indigo-900 mb-2">Morning Duty: Draft Attendance</h2>
+                            <h2 className="text-xl font-bold text-indigo-900 mb-2">Morning Duty: Draft Attendance</h2>
                             <p className="text-sm text-indigo-700 mb-4">You have not submitted the draft attendance for today yet. Please submit it to your home-class teacher before the first period begins.</p>
                             <Link href="/student/class-monitor/draft-attendance" className="inline-flex items-center justify-center px-4 py-2 font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
                                 Submit Attendance Report
@@ -105,7 +105,7 @@ export default function StudentDashboardPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                         {/* 3. Today's Classes Card */}
                         <Card className="p-6 h-full border-slate-200 shadow-sm">
-                            <h2 className="text-xl font-serif font-bold text-slate-900 flex items-baseline gap-2 mb-2">
+                            <h2 className="text-xl font-bold text-slate-900 flex items-baseline gap-2 mb-2">
                                 Today&apos;s Classes <span className="text-sm font-sans font-normal text-slate-400">— Monday</span>
                             </h2>
 
@@ -147,7 +147,7 @@ export default function StudentDashboardPage() {
 
                         {/* 5. Assignments Card (Moved inside grid) */}
                         <Card className="p-6 h-full border-slate-200 shadow-sm">
-                            <h2 className="text-xl font-serif font-bold text-slate-900 mb-2">Assignments</h2>
+                            <h2 className="text-xl font-bold text-slate-900 mb-2">Assignments</h2>
 
                             <div className="flex flex-col">
                                 {data.assignments.map((a) => (
@@ -180,7 +180,7 @@ export default function StudentDashboardPage() {
 
                     {/* 4. Grade Overview Card */}
                     <Card className="p-6 mt-6 border-slate-200 shadow-sm">
-                        <h2 className="text-xl font-serif font-bold text-slate-900">Grade Overview</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Grade Overview</h2>
 
                         <div className="mt-8 flex flex-col md:flex-row items-center gap-12 lg:gap-16 px-4">
                             {/* Left Circular Indicator */}
@@ -221,7 +221,7 @@ export default function StudentDashboardPage() {
                             <Megaphone className="w-5 h-5 text-orange-400" />
                         </div>
                         <div className="flex flex-col">
-                            <h3 className="text-base font-serif font-bold text-white leading-tight mb-1.5">Mid-Term Exams</h3>
+                            <h3 className="text-base font-bold text-white leading-tight mb-1.5">Mid-Term Exams</h3>
                             <p className="text-sm text-slate-300">
                                 Physics &amp; Math papers on <span className="font-semibold text-orange-400">June 9–10</span>. Check your exam timetable in Schedule.
                             </p>
