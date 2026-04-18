@@ -6,27 +6,27 @@ A full-stack, role-based academic management platform with a dark glassmorphism 
 
 ## Tech Stack
 
-| Layer      | Technology |
-| ---------- | ---------- |
+| Layer      | Technology                                                              |
+| ---------- | ----------------------------------------------------------------------- |
 | Frontend   | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui (Radix UI) |
-| Backend    | FastAPI (Python 3.11), SQLAlchemy, Alembic |
-| Database   | PostgreSQL 16 |
-| Auth       | JWT (15-min access + 7-day refresh tokens), bcrypt |
-| Storage    | Local filesystem or Supabase Storage (pluggable) |
-| Charts     | Recharts |
-| Containers | Docker + Docker Compose |
+| Backend    | FastAPI (Python 3.11), SQLAlchemy, Alembic                              |
+| Database   | PostgreSQL 16                                                           |
+| Auth       | JWT (15-min access + 7-day refresh tokens), bcrypt                      |
+| Storage    | Local filesystem or Supabase Storage (pluggable)                        |
+| Charts     | Recharts                                                                |
+| Containers | Docker + Docker Compose                                                 |
 
 ---
 
 ## User Roles
 
-| Role              | Key Capabilities |
-| ----------------- | ---------------- |
+| Role                    | Key Capabilities                                                                |
+| ----------------------- | ------------------------------------------------------------------------------- |
 | **Admin**         | User management, class/subject setup, enrollments, system analytics, audit logs |
-| **Teacher**       | Create/publish assignments, grade submissions, class analytics, modules |
-| **Home Teacher**  | Cross-subject rankings, behavior log review, class overview |
-| **Student**       | Submit assignments, track grades, view attendance, class discussion |
-| **Class Monitor** | Mark daily attendance for their class |
+| **Teacher**       | Create/publish assignments, grade submissions, class analytics, modules         |
+| **Home Teacher**  | Cross-subject rankings, behavior log review, class overview                     |
+| **Student**       | Submit assignments, track grades, view attendance, class discussion             |
+| **Class Monitor** | Mark daily attendance for their class                                           |
 
 ---
 
@@ -145,9 +145,9 @@ ALLOWED_ORIGINS=http://localhost:3000
 docker compose up -d
 ```
 
-| Service    | URL |
-| ---------- | --- |
-| PostgreSQL | `localhost:5432` |
+| Service    | URL                                                  |
+| ---------- | ---------------------------------------------------- |
+| PostgreSQL | `localhost:5432`                                   |
 | PgAdmin    | `http://localhost:5050` (admin@iams.local / admin) |
 
 ---
@@ -187,26 +187,15 @@ npm run dev   # http://localhost:3000
 
 ## Sample Credentials
 
-> All created by `python -m seeds.run_seeds` (password for every account: **`password123`**)
+> **Default Password for all accounts:** `password123`
 
-| Role                   | Email                          | Notes |
-| ---------------------- | ------------------------------ | ----- |
-| Admin                  | `admin@iams.edu`               | Full system access |
-| Math teacher / home    | `math.teacher@iams.edu`        | Teaches MATH101 across all classes; home teacher of Class 10A |
-| English teacher / home | `english.teacher@iams.edu`     | Teaches ENG101; home teacher of Class 10B |
-| Physics teacher / home | `physics.teacher@iams.edu`     | Teaches PHYS101; home teacher of Class 10C |
-| History teacher / home | `history.teacher@iams.edu`     | Teaches HIST101; home teacher of Class 10D |
-| Chemistry teacher      | `chem.teacher@iams.edu`        | Teaches CHEM101 |
-| Biology teacher        | `bio.teacher@iams.edu`         | Teaches BIO101 |
-| French teacher         | `french.teacher@iams.edu`      | Teaches FREN101 |
-| CS teacher             | `cs.teacher@iams.edu`          | Teaches CS101 |
-| PE teacher             | `pe.teacher@iams.edu`          | Teaches PE101 |
-| Art teacher            | `art.teacher@iams.edu`         | Teaches ART101 |
-| Music teacher          | `music.teacher@iams.edu`       | Teaches MUS101 |
-| Student (class monitor)| `student001@iams.edu`          | Class 10A, marks attendance |
-| Student                | `student002@iams.edu`          | Class 10A |
-
-Each subject-specialist teacher teaches their one subject across all 16 class sections (176 class-subject records total).
+| Role                        | Email                        | Notes                               |
+| --------------------------- | ---------------------------- | ----------------------------------- |
+| **Admin**             | `admin@iams.edu`           | Full system access                  |
+| **Math Teacher**      | `math.teacher@iams.edu`    | Standard Teacher                    |
+| **English Teacher**   | `english.teacher@iams.edu` | **Home Teacher** of Class 10B |
+| **Student (Monitor)** | `student001@iams.edu`      | Class 10A,**Class Monitor**   |
+| **Student**           | `student002@iams.edu`      | Standard Student                    |
 
 ---
 
@@ -216,58 +205,58 @@ Both the teacher and student class detail pages use Canvas-style tabbed navigati
 
 **Teacher** — 7 tabs:
 
-| Tab         | Content |
-| ----------- | ------- |
+| Tab         | Content                               |
+| ----------- | ------------------------------------- |
 | Class       | Expandable module sections with items |
 | Assignments | Create / publish / delete assignments |
-| Gradebook   | Grade student submissions |
-| Students    | Enrolled students table |
-| Discussion  | Threaded discussion (stub UI) |
-| Resources   | Files and links (stub UI) |
-| Analysis    | Subject averages chart + table |
+| Gradebook   | Grade student submissions             |
+| Students    | Enrolled students table               |
+| Discussion  | Threaded discussion (stub UI)         |
+| Resources   | Files and links (stub UI)             |
+| Analysis    | Subject averages chart + table        |
 
 **Student** — 8 tabs:
 
-| Tab           | Content |
-| ------------- | ------- |
-| Class         | Read-only module view |
-| Assignments   | Submit published assignments |
-| Grades        | Score trend chart + grade table |
-| Classmates    | Student avatar grid |
-| Discussion    | Thread list (stub UI) |
-| Resources     | File/link cards (stub UI) |
-| Announcements | Expandable announcements (stub UI) |
+| Tab           | Content                                    |
+| ------------- | ------------------------------------------ |
+| Class         | Read-only module view                      |
+| Assignments   | Submit published assignments               |
+| Grades        | Score trend chart + grade table            |
+| Classmates    | Student avatar grid                        |
+| Discussion    | Thread list (stub UI)                      |
+| Resources     | File/link cards (stub UI)                  |
+| Announcements | Expandable announcements (stub UI)         |
 | Attendance    | Personal attendance record + summary stats |
 
 ---
 
 ## API Overview
 
-| Method | Endpoint | Description |
-| ------ | -------- | ----------- |
-| `POST` | `/auth/login` | Obtain access + refresh tokens |
-| `POST` | `/auth/refresh` | Exchange refresh token for a new access token |
-| `GET`  | `/users/me` | Get the authenticated user's profile |
-| `GET/POST` | `/users` | User CRUD (admin only) |
-| `GET/POST` | `/classes` | Class management |
-| `GET/POST` | `/subjects` | Subject management |
-| `GET/POST` | `/class-subjects` | Assign subjects + teachers to classes |
-| `GET/POST` | `/enrollments` | Enroll students in classes |
-| `GET/POST` | `/assignments` | Assignment CRUD + publish |
-| `POST /{id}/publish` | `/assignments` | Publish a draft assignment |
-| `GET/POST` | `/submissions` | Student submission handling |
-| `GET/POST` | `/grades` | Grade submissions (409 on duplicate) |
-| `PUT` | `/grades/{id}` | Update an existing grade |
-| `POST` | `/attendance/batch` | Batch attendance recording (class monitor) |
-| `GET`  | `/attendance` | List attendance records (students see only their own) |
-| `POST` | `/behavior-logs/batch` | Log keypress/paste/focus events |
-| `GET`  | `/analytics/student/{id}/score-trend` | Student score trend (own data only for students) |
-| `GET`  | `/analytics/class/{id}/averages` | Subject averages for a class |
-| `GET`  | `/analytics/home-teacher/{id}/ranking` | Cross-subject student ranking |
-| `GET`  | `/analytics/admin/overview` | Platform-wide statistics |
-| `POST` | `/files/upload` | File attachment upload |
-| `GET`  | `/files/{path}` | Serve an uploaded file |
-| `GET`  | `/health` | Service health check |
+| Method                 | Endpoint                                 | Description                                           |
+| ---------------------- | ---------------------------------------- | ----------------------------------------------------- |
+| `POST`               | `/auth/login`                          | Obtain access + refresh tokens                        |
+| `POST`               | `/auth/refresh`                        | Exchange refresh token for a new access token         |
+| `GET`                | `/users/me`                            | Get the authenticated user's profile                  |
+| `GET/POST`           | `/users`                               | User CRUD (admin only)                                |
+| `GET/POST`           | `/classes`                             | Class management                                      |
+| `GET/POST`           | `/subjects`                            | Subject management                                    |
+| `GET/POST`           | `/class-subjects`                      | Assign subjects + teachers to classes                 |
+| `GET/POST`           | `/enrollments`                         | Enroll students in classes                            |
+| `GET/POST`           | `/assignments`                         | Assignment CRUD + publish                             |
+| `POST /{id}/publish` | `/assignments`                         | Publish a draft assignment                            |
+| `GET/POST`           | `/submissions`                         | Student submission handling                           |
+| `GET/POST`           | `/grades`                              | Grade submissions (409 on duplicate)                  |
+| `PUT`                | `/grades/{id}`                         | Update an existing grade                              |
+| `POST`               | `/attendance/batch`                    | Batch attendance recording (class monitor)            |
+| `GET`                | `/attendance`                          | List attendance records (students see only their own) |
+| `POST`               | `/behavior-logs/batch`                 | Log keypress/paste/focus events                       |
+| `GET`                | `/analytics/student/{id}/score-trend`  | Student score trend (own data only for students)      |
+| `GET`                | `/analytics/class/{id}/averages`       | Subject averages for a class                          |
+| `GET`                | `/analytics/home-teacher/{id}/ranking` | Cross-subject student ranking                         |
+| `GET`                | `/analytics/admin/overview`            | Platform-wide statistics                              |
+| `POST`               | `/files/upload`                        | File attachment upload                                |
+| `GET`                | `/files/{path}`                        | Serve an uploaded file                                |
+| `GET`                | `/health`                              | Service health check                                  |
 
 ---
 
@@ -299,13 +288,13 @@ The home-class teacher views a ranked leaderboard of all students in their class
 
 ## Security
 
-| Threat | Mitigation |
-| ------ | ---------- |
-| Path traversal on file download | Resolve both paths to absolute; assert result is within upload directory |
-| Unrestricted file upload | Allowlist of MIME types (PDF, images, plain text, Word); 400 on rejection |
-| IDOR — student score trends | Students blocked from querying other students' analytics (403) |
-| IDOR — attendance records | Student queries automatically scoped to `current_user.id` |
-| Duplicate grading | `ConflictError` (409) raised if a submission already has a grade |
+| Threat                          | Mitigation                                                                |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| Path traversal on file download | Resolve both paths to absolute; assert result is within upload directory  |
+| Unrestricted file upload        | Allowlist of MIME types (PDF, images, plain text, Word); 400 on rejection |
+| IDOR — student score trends    | Students blocked from querying other students' analytics (403)            |
+| IDOR — attendance records      | Student queries automatically scoped to `current_user.id`               |
+| Duplicate grading               | `ConflictError` (409) raised if a submission already has a grade        |
 
 ---
 
@@ -339,24 +328,47 @@ pytest tests/test_business.py  # business logic only
 pytest -v                    # verbose output
 ```
 
-| File | What it covers |
-| ---- | -------------- |
-| `test_auth.py` | Login (valid/invalid creds), refresh token, expired/invalid token rejection |
-| `test_rbac.py` | Student blocked from admin/teacher routes; admin and teacher have correct access |
+| File                 | What it covers                                                                                  |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| `test_auth.py`     | Login (valid/invalid creds), refresh token, expired/invalid token rejection                     |
+| `test_rbac.py`     | Student blocked from admin/teacher routes; admin and teacher have correct access                |
 | `test_business.py` | Draft submission blocked, late flag, duplicate grade → 409, IDOR → 403, path traversal → 404 |
 
 ---
 
 ## Deployment
 
-| Service      | Recommended Platform |
-| ------------ | -------------------- |
-| Frontend     | Vercel |
-| Backend API  | Railway or Fly.io |
-| Database     | Supabase PostgreSQL |
-| File Storage | Supabase Storage bucket |
+**Recommended stack: Vercel (frontend) + Railway (backend + database)**
 
-To enable Supabase storage, add to `backend/.env`:
+| Service      | Platform              | Notes                                      |
+| ------------ | --------------------- | ------------------------------------------ |
+| Frontend     | Vercel                | Free tier, native Next.js App Router support, global CDN |
+| Backend API  | Railway               | No cold starts, auto-detects `requirements.txt` |
+| Database     | Railway PostgreSQL    | Runs in the same region as the backend — minimal latency |
+| File Storage | Supabase Storage      | Optional — set `STORAGE_BACKEND=supabase`  |
+
+### Steps
+
+1. **Push to GitHub**
+
+2. **Railway** — create a new project, add:
+   - PostgreSQL plugin (copy `DATABASE_URL` from the addon)
+   - Python web service pointing to `backend/` root
+   - Add a `Procfile` in `backend/`:
+     ```
+     web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+     ```
+   - Set env vars: `DATABASE_URL`, `JWT_SECRET_KEY`, `STORAGE_BACKEND=local`, `ALLOWED_ORIGINS=https://your-app.vercel.app`
+   - Run migrations once deployed: `alembic upgrade head`
+
+3. **Vercel** — import the GitHub repo, set root directory to `frontend/`, add env var:
+   ```
+   NEXT_PUBLIC_API_URL=https://your-backend.railway.app
+   ```
+
+### Supabase Storage (optional)
+
+To store uploaded files on Supabase instead of the local filesystem, add to Railway env vars:
 
 ```env
 STORAGE_BACKEND=supabase

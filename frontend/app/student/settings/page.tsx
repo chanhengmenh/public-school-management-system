@@ -1,36 +1,90 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, Shield, Bell, Camera } from 'lucide-react';
-import PageHeader from '@/components/layouts/PageHeader';
+import { User as UserIcon, Shield, Bell, Loader2, CheckCircle2, AlertCircle, Pencil } from 'lucide-react';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { usersApi } from '@/lib/api';
 
 type Tab = 'profile' | 'security' | 'notifications';
 
-const initialProfile = {
-    firstName: 'Alex',
-    lastName: 'Student',
-    email: 'alex.student@school.edu',
-    phone: '+1 (555) 123-4567'
-};
-
 export default function SettingsPage() {
+    const { user, refreshUser } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>('profile');
-    const [formData, setFormData] = useState(initialProfile);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Profile editing
+    const [editing, setEditing] = useState(false);
+    const [fullName, setFullName] = useState(user?.full_name ?? '');
+    const [email, setEmail] = useState(user?.email ?? '');
+    const [saving, setSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+
+    // Password change
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [pwSaving, setPwSaving] = useState(false);
+    const [pwSuccess, setPwSuccess] = useState(false);
+    const [pwError, setPwError] = useState<string | null>(null);
+
+    const startEditing = () => {
+        setFullName(user?.full_name ?? '');
+        setEmail(user?.email ?? '');
+        setEditing(true);
+        setSaveSuccess(false);
+        setSaveError(null);
     };
 
-    const handleSave = () => {
-        if (window.confirm("Do you want to save these changes?")) {
-            alert("Changes saved successfully!");
-            // In a real app, you would make an API call here and update initialProfile
+    const cancelEditing = () => {
+        setEditing(false);
+        setSaveError(null);
+    };
+
+    const handleSaveProfile = async () => {
+        setSaving(true);
+        setSaveError(null);
+        setSaveSuccess(false);
+        try {
+            const updates: { full_name?: string; email?: string } = {};
+            if (fullName !== user?.full_name) updates.full_name = fullName;
+            if (email !== user?.email) updates.email = email;
+            if (Object.keys(updates).length === 0) {
+                setEditing(false);
+                return;
+            }
+            await usersApi.updateMe(updates);
+            await refreshUser();
+            setSaveSuccess(true);
+            setEditing(false);
+        } catch (err: unknown) {
+            const apiErr = err as { data?: { detail?: string } };
+            setSaveError(apiErr?.data?.detail ?? 'Failed to update profile.');
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleCancel = () => {
-        if (window.confirm("Are you sure you want to cancel and discard your changes?")) {
-            setFormData(initialProfile);
+    const handleChangePassword = async () => {
+        setPwError(null);
+        setPwSuccess(false);
+        if (newPassword.length < 6) {
+            setPwError('Password must be at least 6 characters.');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setPwError('Passwords do not match.');
+            return;
+        }
+        setPwSaving(true);
+        try {
+            await usersApi.updateMe({ password: newPassword });
+            setPwSuccess(true);
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err: unknown) {
+            const apiErr = err as { data?: { detail?: string } };
+            setPwError(apiErr?.data?.detail ?? 'Failed to change password.');
+        } finally {
+            setPwSaving(false);
         }
     };
 
@@ -43,111 +97,157 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-6">
                             <div className="relative">
                                 <div className="h-24 w-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-4xl font-bold text-white shadow-md">
-                                    A
+                                    {user?.full_name?.charAt(0)?.toUpperCase() ?? 'U'}
                                 </div>
-                                <button className="absolute bottom-0 right-0 p-2 bg-white rounded-full border border-slate-200 shadow-sm text-slate-600 hover:text-blue-600 transition-colors">
-                                    <Camera className="w-4 h-4" />
-                                </button>
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">Profile Picture</h3>
-                                <p className="text-sm text-slate-500">JPG, GIF or PNG. Max size of 800K</p>
+                                <h3 className="text-lg font-bold text-slate-900">{user?.full_name}</h3>
+                                <p className="text-sm text-slate-500 capitalize">{user?.role}</p>
+                                {user?.is_class_monitor && (
+                                    <span className="inline-block mt-1 text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-bold border border-amber-100">CLASS MONITOR</span>
+                                )}
                             </div>
                         </div>
 
                         <hr className="border-slate-100" />
 
-                        {/* Form Section */}
+                        {/* Success / Error feedback */}
+                        {saveSuccess && (
+                            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl px-4 py-3">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Profile updated successfully.
+                            </div>
+                        )}
+                        {saveError && (
+                            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                                <AlertCircle className="h-4 w-4" />
+                                {saveError}
+                            </div>
+                        )}
+
+                        {/* Profile fields */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">First Name</label>
-                                <input
-                                    type="text"
-                                    name="firstName"
-                                    value={formData.firstName}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-sans"
-                                />
+                                <label className="text-sm font-medium text-slate-700">Full Name</label>
+                                {editing ? (
+                                    <input
+                                        type="text"
+                                        value={fullName}
+                                        onChange={e => setFullName(e.target.value)}
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                                    />
+                                ) : (
+                                    <div className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm">
+                                        {user?.full_name ?? '\u2014'}
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Last Name</label>
-                                <input
-                                    type="text"
-                                    name="lastName"
-                                    value={formData.lastName}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-sans"
-                                />
+                                <label className="text-sm font-medium text-slate-700">Role</label>
+                                <div className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm capitalize">
+                                    {user?.role ?? '\u2014'}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-700">Email Address</label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-sans"
-                                />
+                                {editing ? (
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                                    />
+                                ) : (
+                                    <div className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm">
+                                        {user?.email ?? '\u2014'}
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Phone Number</label>
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-sans"
-                                />
+                                <label className="text-sm font-medium text-slate-700">Account Status</label>
+                                <div className={`w-full px-4 py-2.5 rounded-lg border text-sm font-semibold ${user?.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                                    {user?.is_active ? 'Active' : 'Inactive'}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="pt-4 flex justify-end gap-3">
-                            <button
-                                onClick={handleCancel}
-                                className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium rounded-lg shadow-sm transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors"
-                            >
-                                Save Changes
-                            </button>
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-3">
+                            {editing ? (
+                                <>
+                                    <button
+                                        onClick={handleSaveProfile}
+                                        disabled={saving}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-60 transition-colors text-sm"
+                                    >
+                                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                        Save Changes
+                                    </button>
+                                    <button
+                                        onClick={cancelEditing}
+                                        className="px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors text-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={startEditing}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors text-sm"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                    Edit Profile
+                                </button>
+                            )}
                         </div>
                     </div>
                 );
             case 'security':
                 return (
                     <div className="space-y-6 max-w-xl">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Current Password</label>
-                            <input
-                                type="password"
-                                placeholder="Enter current password"
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-sans"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">New Password</label>
-                            <input
-                                type="password"
-                                placeholder="Enter new password"
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-sans"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Confirm New Password</label>
-                            <input
-                                type="password"
-                                placeholder="Confirm new password"
-                                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-sans"
-                            />
-                        </div>
+                        <p className="text-sm text-slate-500">Change your password below.</p>
 
-                        <div className="pt-4">
-                            <button className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-sm transition-colors">
-                                Update Password
+                        {pwSuccess && (
+                            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl px-4 py-3">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Password changed successfully.
+                            </div>
+                        )}
+                        {pwError && (
+                            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                                <AlertCircle className="h-4 w-4" />
+                                {pwError}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">New Password</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={e => setNewPassword(e.target.value)}
+                                    placeholder="At least 6 characters"
+                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Confirm Password</label>
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={e => setConfirmPassword(e.target.value)}
+                                    placeholder="Re-enter your new password"
+                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                                />
+                            </div>
+                            <button
+                                onClick={handleChangePassword}
+                                disabled={pwSaving || !newPassword}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-60 transition-colors text-sm"
+                            >
+                                {pwSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                                Change Password
                             </button>
                         </div>
                     </div>
@@ -158,7 +258,6 @@ export default function SettingsPage() {
                         <h3 className="text-lg font-bold text-slate-900 mb-4">Notification Preferences</h3>
 
                         <div className="space-y-4">
-                            {/* Toggle Row 1 */}
                             <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
                                 <div className="flex flex-col">
                                     <span className="font-medium text-slate-800 text-sm">Email Alerts for Assignments</span>
@@ -170,11 +269,10 @@ export default function SettingsPage() {
                                 </label>
                             </div>
 
-                            {/* Toggle Row 2 */}
                             <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
                                 <div className="flex flex-col">
-                                    <span className="font-medium text-slate-800 text-sm">SMS Alerts for Grades</span>
-                                    <span className="text-sm text-slate-500">Get a text message when a new grade is published.</span>
+                                    <span className="font-medium text-slate-800 text-sm">Grade Notifications</span>
+                                    <span className="text-sm text-slate-500">Get notified when a new grade is published.</span>
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
                                     <input type="checkbox" className="sr-only peer" defaultChecked />
@@ -182,10 +280,9 @@ export default function SettingsPage() {
                                 </label>
                             </div>
 
-                            {/* Toggle Row 3 */}
                             <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
                                 <div className="flex flex-col">
-                                    <span className="font-medium text-slate-800 text-sm">Push Notifications for Announcements</span>
+                                    <span className="font-medium text-slate-800 text-sm">Announcement Alerts</span>
                                     <span className="text-sm text-slate-500">Enable browser notifications for urgent school announcements.</span>
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -205,14 +302,17 @@ export default function SettingsPage() {
         <div className="min-h-screen bg-slate-50 font-sans">
             <div className="max-w-7xl mx-auto w-full flex flex-col">
                 {/* Sticky Header */}
-                <PageHeader
-                    title="Settings"
-                    subtitle="Manage your account and preferences"
-                />
+                <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Settings</h1>
+                            <p className="text-sm text-slate-500 mt-1">Manage your account and preferences</p>
+                        </div>
+                    </div>
+                </header>
 
                 {/* Content Wrapper */}
                 <div className="px-6 lg:px-8 pb-12 w-full max-w-5xl mt-8">
-                    {/* Grid Layout (4 columns on desktop, 1 on mobile) */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
 
                         {/* Left Column: Inner Sidebar tabs */}
@@ -224,7 +324,7 @@ export default function SettingsPage() {
                                     : 'bg-transparent text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'
                                     }`}
                             >
-                                <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                <UserIcon className={`w-5 h-5 ${activeTab === 'profile' ? 'text-blue-600' : 'text-slate-400'}`} />
                                 Profile
                             </button>
 
@@ -256,7 +356,7 @@ export default function SettingsPage() {
                             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
                                 <h2 className="text-xl font-bold text-slate-900 mb-6 font-serif">
                                     {activeTab === 'profile' && 'Personal Information'}
-                                    {activeTab === 'security' && 'Change Password'}
+                                    {activeTab === 'security' && 'Account Security'}
                                     {activeTab === 'notifications' && 'Communication Preferences'}
                                 </h2>
 

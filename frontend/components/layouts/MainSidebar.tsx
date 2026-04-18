@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
     BookOpen,
@@ -12,49 +12,81 @@ import {
     LogOut,
     GraduationCap,
     Menu,
-    ClipboardCheck
+    ClipboardCheck,
+    Users,
+    BarChart3,
+    LucideIcon
 } from 'lucide-react';
+import { useAuth } from '../auth/AuthProvider';
 
-export default function MainSidebar() {
-    const pathname = usePathname();
-    const router = useRouter();
-    const [isCollapsed, setIsCollapsed] = useState(false);
-    const [isMonitor, setIsMonitor] = useState(false);
+interface MainSidebarProps {
+    role?: string;
+}
 
-    // Run on mount to check if user has class monitor privileges
-    if (typeof window !== 'undefined' && !isMonitor) {
-        if (document.cookie.includes('mock_sub_role=monitor')) {
-            setIsMonitor(true);
+type NavLink = { name: string; href: string; icon: LucideIcon; badge?: number };
+
+function getNavLinks(role: string | undefined, isClassMonitor: boolean, isHomeTeacher: boolean): { main: NavLink[]; account: NavLink[] } {
+    if (role === 'teacher') {
+        const main: NavLink[] = [
+            { name: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
+            { name: 'Classes', href: '/teacher/classes', icon: BookOpen },
+            { name: 'Schedule', href: '/teacher/schedule', icon: Calendar },
+        ];
+        if (isHomeTeacher) {
+            main.push({ name: 'Students', href: '/teacher/students', icon: Users });
         }
+        return { main, account: [] };
     }
 
-    const handleLogout = () => {
-        if (window.confirm("Are you sure you want to log out?")) {
-            document.cookie = "mock_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            router.push('/login');
-        }
-    };
+    if (role === 'admin') {
+        return {
+            main: [
+                { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+                { name: 'Users', href: '/admin/users', icon: Users },
+                { name: 'Academic', href: '/admin/academic', icon: BookOpen },
+                { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+            ],
+            account: [],
+        };
+    }
 
-    type NavLink = { name: string; href: string; icon: React.ElementType; badge?: number };
-
-    const mainMenuLinks: NavLink[] = [
+    // default: student
+    const main: NavLink[] = [
         { name: 'Dashboard', href: '/student', icon: LayoutDashboard },
         { name: 'Classes', href: '/student/classes', icon: BookOpen },
         { name: 'Schedule', href: '/student/schedule', icon: Calendar },
         { name: 'Notifications', href: '/student/notifications', icon: Bell, badge: 4 },
     ];
-
-    if (isMonitor) {
-        mainMenuLinks.push({ name: 'Draft Attendance', href: '/student/attendance', icon: ClipboardCheck });
+    if (isClassMonitor) {
+        main.push({ name: 'Attendance', href: '/student/attendance', icon: ClipboardCheck });
     }
+    return {
+        main,
+        account: [{ name: 'Settings', href: '/student/settings', icon: Settings }],
+    };
+}
 
-    const accountLinks: NavLink[] = [
-        { name: 'Settings', href: '/student/settings', icon: Settings },
-    ];
+export default function MainSidebar({ role }: MainSidebarProps) {
+    const pathname = usePathname();
+    const { user, logout } = useAuth();
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    const handleLogout = () => {
+        if (window.confirm('Are you sure you want to log out?')) {
+            logout();
+        }
+    };
+
+    const effectiveRole = role ?? user?.role;
+    const { main: mainMenuLinks, account: accountLinks } = getNavLinks(
+        effectiveRole,
+        !!user?.is_class_monitor,
+        !!user?.is_home_teacher,
+    );
 
     const renderNavLinks = (links: NavLink[]) => {
         return links.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.href !== '/teacher' && item.href !== '/student' && item.href !== '/admin' && pathname.startsWith(item.href));
             const Icon = item.icon;
 
             return (
@@ -114,11 +146,10 @@ export default function MainSidebar() {
                     </div>
                 )}
 
-                {/* Toggle Button */}
                 <div
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className={`p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center shrink-0 ${isCollapsed ? 'mx-auto' : ''}`}
-                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 >
                     <Menu className="h-5 w-5" />
                 </div>
@@ -126,8 +157,6 @@ export default function MainSidebar() {
 
             {/* Navigation Areas */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-
-                {/* Main Menu Group */}
                 <div className="mb-6">
                     {!isCollapsed && (
                         <h3 className="text-xs font-bold text-slate-500 tracking-widest px-6 mb-3 mt-2 uppercase whitespace-nowrap">
@@ -139,36 +168,35 @@ export default function MainSidebar() {
                     </nav>
                 </div>
 
-                {/* Account Group */}
-                <div>
-                    {!isCollapsed && (
-                        <h3 className="text-xs font-bold text-slate-500 tracking-widest px-6 mb-3 mt-6 uppercase whitespace-nowrap">
-                            Account
-                        </h3>
-                    )}
-                    <nav className="space-y-1">
-                        {renderNavLinks(accountLinks)}
-                    </nav>
-                </div>
+                {accountLinks.length > 0 && (
+                    <div>
+                        {!isCollapsed && (
+                            <h3 className="text-xs font-bold text-slate-500 tracking-widest px-6 mb-3 mt-6 uppercase whitespace-nowrap">
+                                Account
+                            </h3>
+                        )}
+                        <nav className="space-y-1">
+                            {renderNavLinks(accountLinks)}
+                        </nav>
+                    </div>
+                )}
             </div>
 
             {/* Footer / User Profile */}
             <div className={`p-4 border-t border-slate-800 flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
-                {/* Avatar */}
                 <div
                     className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shrink-0 cursor-pointer"
                     onClick={isCollapsed ? handleLogout : undefined}
-                    title={isCollapsed ? "Log Out" : undefined}
+                    title={isCollapsed ? 'Log Out' : undefined}
                 >
-                    <span className="text-white font-bold text-sm">A</span>
+                    <span className="text-white font-bold text-sm">{user?.full_name?.charAt(0) || 'U'}</span>
                 </div>
 
-                {/* User Info & Logout Button (Expanded Only) */}
                 {!isCollapsed && (
                     <>
                         <div className="ml-3 flex flex-col min-w-0 overflow-hidden">
-                            <span className="text-sm font-semibold text-white whitespace-nowrap truncate">Alex</span>
-                            <span className="text-xs text-slate-400 whitespace-nowrap truncate">Grade 11 · Science</span>
+                            <span className="text-sm font-semibold text-white whitespace-nowrap truncate">{user?.full_name}</span>
+                            <span className="text-xs text-slate-400 whitespace-nowrap truncate capitalize">{effectiveRole}</span>
                         </div>
                         <button
                             onClick={handleLogout}

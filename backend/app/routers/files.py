@@ -18,7 +18,16 @@ ALLOWED_TYPES = {
     "text/plain",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
+
+
+def _get_storage_backend():
+    if settings.STORAGE_BACKEND == "supabase":
+        from app.storage.supabase import SupabaseStorageBackend
+        return SupabaseStorageBackend()
+    from app.storage.local import LocalFilesystemBackend
+    return LocalFilesystemBackend()
 
 
 @router.post("/upload", response_model=dict)
@@ -31,8 +40,7 @@ async def upload_file(
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="File type not allowed")
 
-    from app.storage.local import LocalFilesystemBackend
-    backend = LocalFilesystemBackend()
+    backend = _get_storage_backend()
     content = await file.read()
     stored_path = await backend.save(content, file.filename or "upload", folder="submissions")
 

@@ -17,12 +17,18 @@ class StudentScoreTrend(BaseModel):
     scores: list[ScorePoint]
     average_score: float
     total_assignments: int
+    weighted_average: Optional[float] = None
+    attendance_rate: float = 0.0   # (present + excused + late×0.5) / total × 100
+    submission_rate: float = 0.0   # submitted / total published assignments × 100
 
 
 class SubjectAverage(BaseModel):
     subject_id: int
     subject_name: str
     average_score: float
+    min_score: float
+    max_score: float
+    pass_rate: float          # % of submissions with score/max_score ≥ 0.6
     submission_count: int
 
 

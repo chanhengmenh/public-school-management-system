@@ -17,3 +17,5 @@ class ClassSubject(Base):
     subject = relationship("Subject", back_populates="class_subjects")
     teacher = relationship("User", back_populates="class_subjects")
     assignments = relationship("Assignment", back_populates="class_subject")
+    grade_categories = relationship("GradeCategory", back_populates="class_subject")
+    schedules = relationship("ClassSchedule", back_populates="class_subject")

@@ -1,121 +1,315 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { Calendar, CheckCircle2, Clock, PlayCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Loader2, Plus, AlertCircle, Zap, X, Check, FileQuestion } from 'lucide-react';
+import { gradeCategoriesApi, assignmentsApi } from '@/lib/api';
+import { GradeCategory, Assignment } from '@/types/school.types';
 
-// Type Definitions
-interface Quiz {
-    id: string;
-    title: string;
-    description: string;
-    publishDate: string;
-    startDate: string;
-    dueDate: string;
-    timeLimit: string;
-    status: 'Draft' | 'Upcoming' | 'Available' | 'Completed';
-    completedCount: number;
+function StatusBadge({ status }: { status: Assignment['status'] }) {
+  const map: Record<Assignment['status'], string> = {
+    draft: 'bg-slate-100 text-slate-600',
+    published: 'bg-emerald-50 text-emerald-700',
+    closed: 'bg-red-50 text-red-700',
+  };
+  return (
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${map[status]}`}>
+      {status}
+    </span>
+  );
 }
 
-const initialQuizzes: Quiz[] = [
-    { id: 'q1', title: 'Mid-Term Physics Assessment', description: 'Comprehensive test covering Chapter 1 to 4.', publishDate: '2025-05-20T08:00', startDate: '2025-05-21T09:00', dueDate: '2025-05-21T10:30', timeLimit: '90 mins', status: 'Available', completedCount: 28 },
-    { id: 'q2', title: 'Kinematics Pop Quiz', description: 'Quick check on recent kinematics concepts.', publishDate: '2025-05-28T08:00', startDate: '2025-05-29T14:00', dueDate: '2025-05-29T14:45', timeLimit: '45 mins', status: 'Upcoming', completedCount: 0 },
-    { id: 'q3', title: 'Newton\'s Laws Checkpoint', description: 'Standard evaluation for Chapter 3.', publishDate: '2025-06-05T08:00', startDate: '2025-06-06T10:00', dueDate: '2025-06-06T11:00', timeLimit: '60 mins', status: 'Draft', completedCount: 0 }
-];
+interface CreateQuizForm {
+  title: string;
+  description: string;
+  due_date: string;
+  max_score: string;
+}
 
 export default function TeacherQuizzesPage() {
-    const params = useParams();
-    const subjectId = (params?.subjectId as string) || 'class-1';
+  const params = useParams();
+  const subjectId = parseInt(params.subjectId as string, 10);
 
-    const [quizzesData, setQuizzesData] = useState<Quiz[]>(initialQuizzes);
+  const [categories, setCategories] = useState<GradeCategory[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const storedQuizzes = localStorage.getItem(`quizzes-${subjectId}`);
-            if (storedQuizzes) {
-                // Migrate old status names to new ones
-                const parsed: Quiz[] = JSON.parse(storedQuizzes).map((q: any) => ({
-                    ...q,
-                    status: q.status === 'Active' ? 'Available'
-                        : q.status === 'Scheduled' ? 'Upcoming'
-                            : q.status
-                }));
-                localStorage.setItem(`quizzes-${subjectId}`, JSON.stringify(parsed));
-                setQuizzesData(parsed);
-            } else {
-                localStorage.setItem(`quizzes-${subjectId}`, JSON.stringify(initialQuizzes));
-                setQuizzesData(initialQuizzes);
-            }
-        }
-    }, [subjectId]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [form, setForm] = useState<CreateQuizForm>({
+    title: '',
+    description: '',
+    due_date: '',
+    max_score: '100',
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [cats, asns] = await Promise.all([
+        gradeCategoriesApi.list({ class_subject_id: subjectId }),
+        assignmentsApi.list({ class_subject_id: subjectId }),
+      ]);
+      setCategories(cats);
+      setAssignments(asns);
+    } catch {
+      setError('Failed to load quizzes. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [subjectId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const quizCategories = categories.filter(c => c.name.toLowerCase().includes('quiz'));
+
+  const quizAssignments = quizCategories.length > 0
+    ? assignments.filter(a => a.category_id != null && quizCategories.some(c => c.id === a.category_id))
+    : [];
+
+  const handleFormChange = (field: keyof CreateQuizForm, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreate = async () => {
+    setFormError(null);
+    if (!form.title.trim()) {
+      setFormError('Title is required.');
+      return;
+    }
+    const maxScore = parseFloat(form.max_score);
+    if (isNaN(maxScore) || maxScore <= 0) {
+      setFormError('Max score must be a positive number.');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const quizCat = quizCategories[0];
+      const created = await assignmentsApi.create({
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        due_date: form.due_date || undefined,
+        max_score: maxScore,
+        class_subject_id: subjectId,
+        category_id: quizCat?.id ?? null,
+      });
+      setAssignments(prev => [...prev, created]);
+      setForm({ title: '', description: '', due_date: '', max_score: '100' });
+      setShowCreateForm(false);
+    } catch {
+      setFormError('Failed to create quiz. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCancelCreate = () => {
+    setShowCreateForm(false);
+    setForm({ title: '', description: '', due_date: '', max_score: '100' });
+    setFormError(null);
+  };
+
+  if (loading) {
     return (
-        <div className="flex flex-col space-y-8">
-            {/* Action Bar */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                <span className="text-sm text-slate-500">
-                    Manage class quizzes and assessments
-                </span>
-                <Link
-                    href={`/teacher/classes/${subjectId}/quizzes/create`}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
-                >
-                    + Create Quiz
-                </Link>
-            </div>
-
-            {/* Quiz List */}
-            <div className="flex flex-col gap-4">
-                {quizzesData.map(quiz => (
-                    <div key={quiz.id} className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col justify-between gap-4">
-                        {/* Header Row */}
-                        <div className="flex justify-between items-start gap-3">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug">{quiz.title}</span>
-                                <p className="text-xs text-slate-500 mt-1 line-clamp-1">{quiz.description}</p>
-                            </div>
-                            <span className={`shrink-0 px-2.5 py-1 text-xs tracking-wide font-bold rounded-md ${quiz.status === 'Draft' ? 'bg-slate-100 text-slate-600' :
-                                quiz.status === 'Available' ? 'bg-green-100 text-green-700' :
-                                    quiz.status === 'Completed' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                                        'bg-yellow-100 text-yellow-700'
-                                }`}>
-                                {quiz.status}
-                            </span>
-                        </div>
-
-                        {/* Timeline Column */}
-                        <div className="flex flex-col gap-2 bg-slate-50 rounded-lg p-3 border border-slate-100">
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate">Visible to students: <strong className="text-slate-700 font-medium">{new Date(quiz.publishDate).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</strong></span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <PlayCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                                <span className="truncate">Opens for taking: <strong className="text-slate-700 font-medium">{new Date(quiz.startDate).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</strong></span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                                <span className="truncate">Closes precisely: <strong className="text-slate-700 font-medium">{new Date(quiz.dueDate).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</strong></span>
-                            </div>
-                        </div>
-
-                        {/* Footer Row */}
-                        <div className="pt-3 border-t border-slate-100 flex justify-between items-center mt-auto">
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                                <Clock className="w-3.5 h-3.5" />
-                                Time Limit: {quiz.timeLimit}
-                            </div>
-                            <Link
-                                href={`/teacher/classes/${subjectId}/quizzes/create?edit=${quiz.id}`}
-                                className="text-sm font-bold text-slate-400 hover:text-purple-600 transition-colors flex items-center gap-1"
-                            >
-                                Edit ✎
-                            </Link>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-500">
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p>{error}</p>
+        <button
+          onClick={loadData}
+          className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // No quiz category exists
+  if (quizCategories.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-center">
+          <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileQuestion className="h-7 w-7 text-orange-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">No Quiz Category Found</h2>
+          <p className="text-slate-500 mb-6">
+            Create a <span className="font-semibold text-slate-700">&ldquo;Quiz&rdquo;</span> grade category in the Grading tab
+            to organize and manage quizzes for this class.
+          </p>
+          <Link
+            href={`/teacher/classes/${subjectId}/grading`}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition-colors"
+          >
+            Go to Grading Tab
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Quizzes</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {quizAssignments.length} quiz{quizAssignments.length !== 1 ? 'zes' : ''} in{' '}
+            {quizCategories.map(c => c.name).join(', ')}
+          </p>
+        </div>
+        {!showCreateForm && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition-colors text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            New Quiz
+          </button>
+        )}
+      </div>
+
+      {/* Create Form */}
+      {showCreateForm && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+          <h2 className="text-base font-bold text-slate-900 mb-4">New Quiz</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={e => handleFormChange('title', e.target.value)}
+                placeholder="e.g. Quiz 1 – Chapter 3"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <textarea
+                value={form.description}
+                onChange={e => handleFormChange('description', e.target.value)}
+                placeholder="Optional description or instructions"
+                rows={3}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
+                <input
+                  type="datetime-local"
+                  value={form.due_date}
+                  onChange={e => handleFormChange('due_date', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Max Score</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.max_score}
+                  onChange={e => handleFormChange('max_score', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span>Category:</span>
+              <span className="font-semibold text-slate-700">{quizCategories[0].name}</span>
+              <span className="text-slate-400">({(quizCategories[0].weight * 100).toFixed(0)}%)</span>
+            </div>
+            {formError && (
+              <p className="text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                {formError}
+              </p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 disabled:opacity-60 transition-colors"
+              >
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Create Quiz
+              </button>
+              <button
+                onClick={handleCancelCreate}
+                className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quiz List */}
+      {quizAssignments.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-10 text-center">
+          <Zap className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-500">No quizzes yet. Click &ldquo;New Quiz&rdquo; to create one.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {quizAssignments.map(quiz => (
+            <Link
+              key={quiz.id}
+              href={`/teacher/classes/${subjectId}/quizzes/${quiz.id}`}
+              className="block bg-white border border-slate-200 rounded-2xl shadow-sm p-5 hover:border-orange-200 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="p-2.5 bg-orange-50 rounded-xl shrink-0">
+                    <Zap className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-slate-900 truncate">{quiz.title}</h3>
+                    {quiz.description && (
+                      <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{quiz.description}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
+                      <span>Max Score: <span className="font-semibold text-slate-700">{quiz.max_score}</span></span>
+                      {quiz.due_date && (
+                        <span>
+                          Due:{' '}
+                          <span className="font-semibold text-slate-700">
+                            {new Date(quiz.due_date).toLocaleString()}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  <StatusBadge status={quiz.status} />
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

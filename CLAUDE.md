@@ -83,25 +83,22 @@ Layered structure: **Router → Service → Model**
 
 **Auth flow**: Short-lived JWT access token (15 min) + long-lived refresh token (7 days). `GET /auth/refresh` accepts refresh token and returns a new access token.
 
-**User roles**: `admin`, `teacher`, `home_teacher`, `student`, `class_monitor` (enum in `models/user.py`).
+**User roles**: `admin`, `teacher`, `student` (enum in `models/user.py`). `is_home_teacher=True` is a flag on teacher users; `is_class_monitor=True` is a flag on student users — these are NOT separate role values.
 
-### Frontend (`frontend/src/`)
+### Frontend (`frontend/`)
 
 - `app/` — Next.js App Router pages
-  - `(auth)/` — Login page (no layout chrome)
-  - `(dashboard)/` — Protected routes; `layout.tsx` redirects unauthenticated users to `/login` and renders `<Sidebar>` + `<Topbar>`
-  - Route segments per role: `/admin/...`, `/teacher/...`, `/home-teacher/...`, `/student/...`, `/class-monitor/...`
+  - `(auth)/login/` — Login page (no layout chrome)
+  - Route segments per role: `/admin/...`, `/teacher/...`, `/student/...`
   - Root `page.tsx` redirects to the role-specific dashboard or `/login`
-- `context/AuthContext.tsx` — Provides `user`, `isLoading`, `login`, `logout`; silently refreshes on mount using `localStorage.refresh_token`; access token kept **in memory only** via `setAccessToken()` in `lib/api/client.ts`
-- `lib/hooks/useAuth.ts` — Consumes `AuthContext`
+- `contexts/NotificationContext.tsx` — In-memory notification state (mock, no backend)
+- `components/auth/AuthProvider.tsx` — Provides `user`, `isLoading`, `login`, `logout`, `refreshUser`; silently refreshes on mount using `localStorage.refresh_token`; access token kept **in memory only** via `setAccessToken()` in `lib/api/client.ts`
+- `components/auth/PasswordGuard.tsx` — Guards routes that require a password change
 - `lib/api/client.ts` — Axios instance; base URL from `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`); request interceptor injects `Authorization: Bearer <access_token>`; 401 response interceptor auto-refreshes and retries
-- `lib/api/*.ts` — Typed API wrappers per resource (e.g., `assignmentsApi`, `gradesApi`)
-- `lib/utils/roleHelpers.ts` — `ROLE_DASHBOARD` map used for post-login redirect; `getRoleDashboard(role)` returns the route
-- `types/` — TypeScript interfaces mirroring backend schemas
+- `lib/api/*.ts` — Typed API wrappers per resource (`auth`, `users`, `classes`, `subjects`, `enrollments`, `class-subjects`, `assignments`, `submissions`, `grades`, `grade-categories`, `files`, `attendance`, `analytics`, `schedules`, `notifications`)
+- `types/` — TypeScript interfaces mirroring backend schemas (`user.types.ts`, `school.types.ts`)
 - `components/ui/` — shadcn/ui primitives (Button, Dialog, Toast, Table, etc.)
-- `components/shared/` — Reusable app-level components: `DataTable`, `PageHeader`, `StatCard`, `ConfirmDialog`
-- `components/layout/` — `Sidebar` (renders nav items keyed by role from `NAV_CONFIG`), `Topbar`
-- `components/analytics/` — Recharts-based chart components
+- `components/layouts/` — `MainSidebar` (role-based nav), `TeacherSidebar`, `PageHeader`, `SubjectTabs`
 
 ### Key Data Model Relationships
 
@@ -133,3 +130,75 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 ### Test Setup
 
 `backend/tests/conftest.py` overrides `get_db` to use a SQLite test database with per-test transaction rollback. Fixtures: `client` (FastAPI `TestClient`) and `db` (SQLAlchemy session).
+
+---
+
+## Deployment (Railway + Vercel + Supabase)
+
+Chosen stack: **Railway** (backend) + **Vercel** (frontend) + **Supabase** (PostgreSQL + file storage).
+
+### Services
+
+| Service | Purpose | Cost |
+|---------|---------|------|
+| Railway | FastAPI backend | Free tier / ~$5/mo |
+| Vercel | Next.js frontend | Free |
+| Supabase | PostgreSQL + file storage | Free tier (upgrade to $25/mo for production to prevent DB pause) |
+
+### Config Files
+
+| File | Purpose |
+|------|---------|
+| `backend/railway.toml` | Railway build + start command |
+| `backend/Procfile` | Fallback process definition |
+| `backend/.env.production` | Template for Railway env vars (do NOT commit real values) |
+| `frontend/vercel.json` | Vercel build config (region: Singapore `sin1`) |
+
+### Step-by-Step Deploy
+
+#### 1. Supabase (Database + Storage)
+1. Create project at [supabase.com](https://supabase.com)
+2. Go to **Settings → Database → Connection string** (use **Transaction mode** URI) → set as `DATABASE_URL` in Railway
+3. Go to **Settings → API** → copy `service_role` key → set as `SUPABASE_SERVICE_ROLE_KEY`
+4. Go to **Storage** → create bucket named `iams-files` (set to private)
+
+#### 2. Railway (Backend)
+1. Create project at [railway.app](https://railway.app)
+2. **New Service → GitHub Repo** → select this repo → set **Root Directory** to `backend/`
+3. Go to **Variables** tab → add all vars from `backend/.env.production` with real values:
+   ```
+   DATABASE_URL=<supabase transaction uri>
+   JWT_SECRET_KEY=<run: openssl rand -hex 32>
+   STORAGE_BACKEND=supabase
+   SUPABASE_URL=https://<project>.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=<service role key>
+   SUPABASE_STORAGE_BUCKET=iams-files
+   ALLOWED_ORIGINS=https://<your-app>.vercel.app
+   DEBUG=false
+   ENVIRONMENT=production
+   ```
+4. Deploy — Railway auto-runs `alembic upgrade head` then starts uvicorn
+5. Copy the generated Railway domain (e.g. `https://iams-backend.up.railway.app`)
+
+#### 3. Vercel (Frontend)
+1. Go to [vercel.com](https://vercel.com) → **New Project → Import GitHub Repo**
+2. Set **Root Directory** to `frontend/`
+3. Add environment variable:
+   ```
+   NEXT_PUBLIC_API_URL=https://<your-railway-domain>.up.railway.app
+   ```
+4. Deploy — Vercel auto-detects Next.js
+
+#### 4. Final Wiring
+- Go back to Railway → update `ALLOWED_ORIGINS` to your Vercel URL
+- Redeploy Railway service
+
+### Generate a Secure JWT Secret
+```bash
+openssl rand -hex 32
+```
+
+### Stability Notes
+- Vercel: 99.99% uptime, no concerns
+- Railway: stable for hundreds of concurrent users; free tier has $5/mo credit cap
+- Supabase free tier: **pauses after 7 days of inactivity** — upgrade to paid for daily school use

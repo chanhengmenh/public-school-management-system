@@ -2,15 +2,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
-interface RequestOptions extends RequestInit {
+interface RequestOptions extends Omit<RequestInit, 'body'> {
   params?: Record<string, string | number | boolean>;
+  body?: unknown;
 }
 
 export class ApiError extends Error {
   status: number;
-  data: any;
+  data: { detail?: string; message?: string } & Record<string, unknown>;
 
-  constructor(status: number, data: any) {
+  constructor(status: number, data: { detail?: string; message?: string } & Record<string, unknown>) {
     super(`API Error: ${status}`);
     this.status = status;
     this.data = data;
@@ -73,7 +74,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    let data;
+    let data: { detail?: string; message?: string } & Record<string, unknown>;
     try {
       data = await response.json();
     } catch {
@@ -91,11 +92,11 @@ async function request<T>(
 
 export const client = {
   get: <T>(url: string, options?: RequestOptions) => request<T>("GET", url, options),
-  post: <T>(url: string, body?: any, options?: RequestOptions) =>
+  post: <T>(url: string, body?: unknown, options?: RequestOptions) =>
     request<T>("POST", url, { ...options, body }),
-  put: <T>(url: string, body?: any, options?: RequestOptions) =>
+  put: <T>(url: string, body?: unknown, options?: RequestOptions) =>
     request<T>("PUT", url, { ...options, body }),
-  patch: <T>(url: string, body?: any, options?: RequestOptions) =>
+  patch: <T>(url: string, body?: unknown, options?: RequestOptions) =>
     request<T>("PATCH", url, { ...options, body }),
   delete: <T>(url: string, options?: RequestOptions) => request<T>("DELETE", url, options),
 };

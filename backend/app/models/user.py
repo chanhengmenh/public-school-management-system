@@ -22,6 +22,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_home_teacher = Column(Boolean, nullable=False, default=False, server_default='false')
     is_class_monitor = Column(Boolean, nullable=False, default=False, server_default='false')
+    must_change_password = Column(Boolean, nullable=False, default=True, server_default='true')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -32,3 +33,4 @@ class User(Base):
     attendance_marked = relationship("Attendance", back_populates="marked_by_user", foreign_keys="Attendance.marked_by_id")
     home_class = relationship("Class", back_populates="home_teacher", uselist=False)
     class_subjects = relationship("ClassSubject", back_populates="teacher")
+    notifications = relationship("Notification", back_populates="user")

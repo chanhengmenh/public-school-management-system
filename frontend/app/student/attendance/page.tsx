@@ -1,175 +1,330 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ClipboardCheck } from 'lucide-react';
-import PageHeader from '@/components/layouts/PageHeader';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Loader2,
+  AlertCircle,
+  ClipboardCheck,
+  ShieldAlert,
+  CheckCircle2,
+} from 'lucide-react';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { enrollmentsApi, classSubjectsApi, client } from '@/lib/api';
+import { Enrollment, ClassSubject } from '@/types/school.types';
+import { User } from '@/types/user.types';
 
-type AttendanceStatus = 'Present' | 'Absent' | 'Late';
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 
-interface Student {
-    id: number;
-    name: string;
-    avatar: string;
-    status: AttendanceStatus;
+interface AttendanceEntry {
+  student_id: number;
+  status: AttendanceStatus;
 }
 
-const initialStudents: Student[] = [
-    { id: 1, name: 'Emma Wilson', avatar: 'E', status: 'Present' },
-    { id: 2, name: 'Liam Chen', avatar: 'L', status: 'Present' },
-    { id: 3, name: 'Olivia Garcia', avatar: 'O', status: 'Present' },
-    { id: 4, name: 'Noah Patel', avatar: 'N', status: 'Present' },
-    { id: 5, name: 'Ava Smith', avatar: 'A', status: 'Present' },
-    { id: 6, name: 'William Jones', avatar: 'W', status: 'Present' },
-];
+const STATUS_CONFIG: Record<AttendanceStatus, { label: string; active: string; inactive: string }> = {
+  present:  { label: 'Present',  active: 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm', inactive: 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50' },
+  absent:   { label: 'Absent',   active: 'bg-red-50 border-red-300 text-red-700 shadow-sm',             inactive: 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50' },
+  late:     { label: 'Late',     active: 'bg-amber-50 border-amber-300 text-amber-700 shadow-sm',       inactive: 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50' },
+  excused:  { label: 'Excused',  active: 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm',          inactive: 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50' },
+};
 
-export default function DraftAttendancePage() {
-    const [students, setStudents] = useState<Student[]>(initialStudents);
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [subject, setSubject] = useState('Physics');
-    const [session, setSession] = useState('8:00 AM');
+const ALL_STATUSES: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'];
 
-    const handleStatusChange = (id: number, newStatus: AttendanceStatus) => {
-        setStudents(current =>
-            current.map(student =>
-                student.id === id ? { ...student, status: newStatus } : student
-            )
-        );
-    };
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(p => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
 
-    const handleSubmit = () => {
-        if (window.confirm("Are you sure you want to submit this attendance report to the teacher?")) {
-            alert(`Attendance submitted for ${subject} (${session}) on ${date}`);
-            // Reset after submission simulation
-            setStudents(initialStudents);
-        }
-    };
+export default function AttendancePage() {
+  const { user } = useAuth();
 
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  const [students, setStudents] = useState<User[]>([]);
+  const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
+  const [attendance, setAttendance] = useState<Record<number, AttendanceStatus>>({});
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const enrollments = await enrollmentsApi.list({ student_id: user.id });
+      if (enrollments.length === 0) {
+        setError('You are not enrolled in any class.');
+        setLoading(false);
+        return;
+      }
+      const myEnrollment = enrollments[0];
+      setEnrollment(myEnrollment);
+
+      const [studentsData, subjectsData] = await Promise.all([
+        client.get<User[]>(`/classes/${myEnrollment.class_id}/students`),
+        classSubjectsApi.list({ class_id: myEnrollment.class_id }),
+      ]);
+
+      setStudents(studentsData);
+      setClassSubjects(subjectsData);
+
+      if (subjectsData.length > 0) {
+        setSelectedSubjectId(subjectsData[0].id);
+      }
+
+      // Default all students to 'present'
+      const defaultAttendance: Record<number, AttendanceStatus> = {};
+      studentsData.forEach(s => { defaultAttendance[s.id] = 'present'; });
+      setAttendance(defaultAttendance);
+    } catch {
+      setError('Failed to load class data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleStatusChange = (studentId: number, status: AttendanceStatus) => {
+    setAttendance(prev => ({ ...prev, [studentId]: status }));
+    setSubmitSuccess(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!enrollment) return;
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      const entries: AttendanceEntry[] = students.map(s => ({
+        student_id: s.id,
+        status: attendance[s.id] ?? 'present',
+      }));
+      await client.post('/attendance/batch', {
+        class_id: enrollment.class_id,
+        date,
+        entries,
+      });
+      setSubmitSuccess(true);
+    } catch {
+      setSubmitError('Failed to submit attendance. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const summaryCounts = ALL_STATUSES.reduce<Record<AttendanceStatus, number>>(
+    (acc, s) => {
+      acc[s] = Object.values(attendance).filter(v => v === s).length;
+      return acc;
+    },
+    { present: 0, absent: 0, late: 0, excused: 0 }
+  );
+
+  // Guard: not a class monitor
+  if (user && !user.is_class_monitor) {
     return (
-        <div className="min-h-screen bg-slate-50 font-sans">
-            <div className="max-w-7xl mx-auto w-full flex flex-col">
-                {/* Sticky Header */}
-                <PageHeader
-                    title="Draft Attendance"
-                    badge="Monitor Task"
-                    subtitle="Submit daily attendance to your teachers."
-                />
-
-                {/* Content Wrapper */}
-                <div className="px-6 lg:px-8 pb-12 w-full max-w-4xl mt-8">
-
-                    {/* Top Section: Form Controls */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8 mb-8">
-                        <h2 className="text-lg font-bold text-slate-900 mb-6 font-serif">Session Details</h2>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Date</label>
-                                <input
-                                    type="date"
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-sans"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Subject</label>
-                                <select
-                                    value={subject}
-                                    onChange={(e) => setSubject(e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-sans appearance-none"
-                                >
-                                    <option value="Physics">Physics</option>
-                                    <option value="Advanced Math">Advanced Math</option>
-                                    <option value="English Literature">English Literature</option>
-                                    <option value="Geography">Geography</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Session Time</label>
-                                <select
-                                    value={session}
-                                    onChange={(e) => setSession(e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-sans appearance-none"
-                                >
-                                    <option value="8:00 AM">8:00 AM</option>
-                                    <option value="10:00 AM">10:00 AM</option>
-                                    <option value="1:00 PM">1:00 PM</option>
-                                    <option value="3:00 PM">3:00 PM</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Middle Section: Student Roster */}
-                    <div className="mb-8">
-                        <h2 className="text-lg font-bold text-slate-900 mb-4 font-serif px-2">Student Roster</h2>
-
-                        <div className="flex flex-col gap-3">
-                            {students.map((student) => (
-                                <div key={student.id} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-slate-300">
-
-                                    {/* Left: Avatar & Name */}
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
-                                            {student.avatar}
-                                        </div>
-                                        <div>
-                                            <span className="font-bold font-sans text-slate-800">{student.name}</span>
-                                            <span className="block text-xs text-slate-500 mt-0.5">ID: 2025-{student.id.toString().padStart(4, '0')}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Right: Status Toggles */}
-                                    <div className="flex items-center gap-2 sm:ml-auto w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-                                        <button
-                                            onClick={() => handleStatusChange(student.id, 'Present')}
-                                            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${student.status === 'Present'
-                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm'
-                                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                                                }`}
-                                        >
-                                            Present
-                                        </button>
-                                        <button
-                                            onClick={() => handleStatusChange(student.id, 'Absent')}
-                                            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${student.status === 'Absent'
-                                                ? 'bg-red-50 border-red-200 text-red-700 shadow-sm'
-                                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                                                }`}
-                                        >
-                                            Absent
-                                        </button>
-                                        <button
-                                            onClick={() => handleStatusChange(student.id, 'Late')}
-                                            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${student.status === 'Late'
-                                                ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
-                                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                                                }`}
-                                        >
-                                            Late
-                                        </button>
-                                    </div>
-
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Bottom Section: Submit Action */}
-                    <div className="flex justify-end pt-4 border-t border-slate-200">
-                        <button
-                            onClick={handleSubmit}
-                            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-sm transition-colors flex items-center gap-2"
-                        >
-                            <ClipboardCheck className="w-5 h-5" />
-                            Submit to Teacher
-                        </button>
-                    </div>
-
-                </div>
-            </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-10 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="h-7 w-7 text-red-500" />
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h1>
+          <p className="text-slate-500 text-sm">
+            This page is for class monitors only. If you believe this is an error,
+            please contact your teacher.
+          </p>
         </div>
+      </div>
     );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-500">
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p>{error}</p>
+        <button
+          onClick={loadData}
+          className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-4xl mx-auto px-6 lg:px-8 py-8 space-y-6">
+
+        {/* Page Header */}
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900">Mark Attendance</h1>
+          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-600 text-xs font-semibold rounded-full border border-orange-200">
+            <ClipboardCheck className="h-3.5 w-3.5" />
+            Class Monitor
+          </span>
+        </div>
+
+        {enrollment && (
+          <p className="text-sm text-slate-500 -mt-2">
+            Class: <span className="font-semibold text-slate-700">{enrollment.class_name}</span>
+          </p>
+        )}
+
+        {/* Success Toast */}
+        {submitSuccess && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <p className="text-emerald-700 font-medium text-sm">
+              Attendance submitted successfully!
+            </p>
+          </div>
+        )}
+
+        {/* Session Details */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+          <h2 className="text-base font-bold text-slate-900 mb-4">Session Details</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Date</label>
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Subject</label>
+              <select
+                value={selectedSubjectId}
+                onChange={e => setSelectedSubjectId(e.target.value ? parseInt(e.target.value, 10) : '')}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all appearance-none"
+              >
+                <option value="">— Select subject —</option>
+                {classSubjects.map(cs => (
+                  <option key={cs.id} value={cs.id}>
+                    {cs.subject_name ?? `Subject ${cs.subject_id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Row */}
+        <div className="grid grid-cols-4 gap-3">
+          {ALL_STATUSES.map(s => (
+            <div key={s} className="bg-white border border-slate-200 rounded-xl p-3 text-center shadow-sm">
+              <p className="text-2xl font-bold text-slate-800">{summaryCounts[s]}</p>
+              <p className="text-xs text-slate-500 capitalize mt-0.5">{STATUS_CONFIG[s].label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Student Roster */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <h2 className="font-bold text-slate-900">
+              Student Roster
+              <span className="ml-2 text-sm font-normal text-slate-400">
+                ({students.length} students)
+              </span>
+            </h2>
+          </div>
+
+          {students.length === 0 ? (
+            <div className="px-6 py-10 text-center text-slate-400 text-sm">
+              No students found in your class.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {students.map(student => {
+                const currentStatus = attendance[student.id] ?? 'present';
+                return (
+                  <div
+                    key={student.id}
+                    className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors"
+                  >
+                    {/* Student Info */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 text-orange-700 flex items-center justify-center font-bold text-sm shrink-0">
+                        {getInitials(student.full_name)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-800 text-sm">{student.full_name}</p>
+                        <p className="text-xs text-slate-400">{student.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Status Buttons */}
+                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                      {ALL_STATUSES.map(status => (
+                        <button
+                          key={status}
+                          onClick={() => handleStatusChange(student.id, status)}
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                            currentStatus === status
+                              ? STATUS_CONFIG[status].active
+                              : STATUS_CONFIG[status].inactive
+                          }`}
+                        >
+                          {STATUS_CONFIG[status].label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Submit */}
+        <div className="border-t border-slate-200 pt-4">
+          {submitError && (
+            <p className="text-sm text-red-600 flex items-center gap-1 mb-3">
+              <AlertCircle className="h-4 w-4" />
+              {submitError}
+            </p>
+          )}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || students.length === 0}
+              className="flex items-center gap-2 px-6 py-2.5 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 disabled:opacity-60 transition-colors shadow-sm"
+            >
+              {submitting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ClipboardCheck className="h-5 w-5" />
+              )}
+              Submit Attendance
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
 }

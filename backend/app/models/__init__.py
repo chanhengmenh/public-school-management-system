@@ -10,6 +10,9 @@ from app.models.submission_file import SubmissionFile
 from app.models.behavior_log import BehaviorLog, EventType
 from app.models.grade import Grade
 from app.models.attendance import Attendance, AttendanceStatus
+from app.models.grade_category import GradeCategory
+from app.models.schedule import ClassSchedule, DayOfWeek
+from app.models.notification import Notification, NotificationType
 
 __all__ = [
     "User", "UserRole",
@@ -23,4 +26,7 @@ __all__ = [
     "BehaviorLog", "EventType",
     "Grade",
     "Attendance", "AttendanceStatus",
+    "GradeCategory",
+    "ClassSchedule", "DayOfWeek",
+    "Notification", "NotificationType",
 ]

@@ -1,13 +1,16 @@
+from collections import defaultdict
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case, cast, Float
 from app.dependencies import get_db, get_current_user
 from app.models.user import UserRole, User
 from app.models.submission import AssignmentSubmission
-from app.models.assignment import Assignment
+from app.models.assignment import Assignment, AssignmentStatus
 from app.models.grade import Grade
 from app.models.class_subject import ClassSubject
 from app.models.enrollment import Enrollment
+from app.models.attendance import Attendance, AttendanceStatus
+from app.models.grade_category import GradeCategory
 from app.schemas.analytics import (
     StudentScoreTrend, ScorePoint, ClassAnalytics, SubjectAverage,
     ClassRanking, RankingEntry, AdminOverview
@@ -42,6 +45,61 @@ def student_score_trend(student_id: int, db: Session = Depends(get_db),
         for g, s, a in rows
     ]
     avg = sum(sp.score for sp in scores) / len(scores) if scores else 0.0
+
+    # Weighted average: group scores by category and apply category weights
+    # Collect categories from the assignments found in rows
+    class_subject_ids = {a.class_subject_id for _, _, a in rows}
+    categories = db.query(GradeCategory).filter(
+        GradeCategory.class_subject_id.in_(class_subject_ids)
+    ).all() if class_subject_ids else []
+    cat_map = {c.id: c for c in categories}
+
+    by_cat: dict[int, list[float]] = defaultdict(list)
+    for g, _, a in rows:
+        if a.category_id and a.category_id in cat_map:
+            pct = float(g.score) / a.max_score * 100 if a.max_score else 0.0
+            by_cat[a.category_id].append(pct)
+
+    weighted_avg: float | None = None
+    if by_cat:
+        weighted_avg = sum(
+            (sum(scores_list) / len(scores_list)) * float(cat_map[cat_id].weight)
+            for cat_id, scores_list in by_cat.items()
+        )
+
+    # Attendance rate: (present + excused + late × 0.5) / total × 100
+    att_rows = db.query(Attendance).filter(Attendance.student_id == student_id).all()
+    if att_rows:
+        total_att = len(att_rows)
+        present = sum(1 for a in att_rows if a.status == AttendanceStatus.present)
+        late = sum(1 for a in att_rows if a.status == AttendanceStatus.late)
+        excused = sum(1 for a in att_rows if a.status == AttendanceStatus.excused)
+        attendance_rate = (present + excused + late * 0.5) / total_att * 100
+    else:
+        attendance_rate = 0.0
+
+    # Submission rate: submitted / total published assignments in enrolled classes × 100
+    enrolled_class_ids = (
+        db.query(Enrollment.class_id)
+        .filter(Enrollment.student_id == student_id)
+        .subquery()
+    )
+    total_published = (
+        db.query(func.count(Assignment.id))
+        .join(ClassSubject, Assignment.class_subject_id == ClassSubject.id)
+        .filter(
+            ClassSubject.class_id.in_(enrolled_class_ids),
+            Assignment.status == AssignmentStatus.published,
+        )
+        .scalar() or 0
+    )
+    total_submitted = (
+        db.query(func.count(AssignmentSubmission.id))
+        .filter(AssignmentSubmission.student_id == student_id)
+        .scalar() or 0
+    )
+    submission_rate = (total_submitted / total_published * 100) if total_published > 0 else 0.0
+
     student = db.query(User).filter(User.id == student_id).first()
     return StudentScoreTrend(
         student_id=student_id,
@@ -49,6 +107,9 @@ def student_score_trend(student_id: int, db: Session = Depends(get_db),
         scores=scores,
         average_score=avg,
         total_assignments=len(scores),
+        weighted_average=weighted_avg,
+        attendance_rate=round(attendance_rate, 2),
+        submission_rate=round(submission_rate, 2),
     )
 
 
@@ -63,7 +124,15 @@ def class_averages(class_id: int, db: Session = Depends(get_db)):
             Subject.id,
             Subject.name,
             func.avg(Grade.score).label("avg_score"),
+            func.min(Grade.score).label("min_score"),
+            func.max(Grade.score).label("max_score"),
             func.count(Grade.id).label("count"),
+            func.sum(
+                case(
+                    (cast(Grade.score, Float) / cast(Assignment.max_score, Float) >= 0.6, 1),
+                    else_=0,
+                )
+            ).label("pass_count"),
         )
         .join(ClassSubject, ClassSubject.subject_id == Subject.id)
         .join(Assignment, Assignment.class_subject_id == ClassSubject.id)
@@ -78,6 +147,9 @@ def class_averages(class_id: int, db: Session = Depends(get_db)):
             subject_id=row.id,
             subject_name=row.name,
             average_score=float(row.avg_score or 0),
+            min_score=float(row.min_score or 0),
+            max_score=float(row.max_score or 0),
+            pass_rate=round(float(row.pass_count or 0) / row.count * 100, 2) if row.count else 0.0,
             submission_count=row.count,
         )
         for row in rows
@@ -112,17 +184,22 @@ def class_ranking(class_id: int, db: Session = Depends(get_db)):
         .order_by(func.coalesce(func.sum(Grade.score), 0).desc())
         .all()
     )
-    entries = [
-        RankingEntry(
-            rank=i + 1,
+    entries = []
+    prev_score = None
+    current_rank = 0
+    for i, row in enumerate(rows):
+        score = float(row.total_score)
+        if score != prev_score:
+            current_rank = i + 1
+        entries.append(RankingEntry(
+            rank=current_rank,
             student_id=row.id,
             student_name=row.full_name,
-            total_score=float(row.total_score),
+            total_score=score,
             average_score=float(row.average_score),
             assignment_count=row.assignment_count,
-        )
-        for i, row in enumerate(rows)
-    ]
+        ))
+        prev_score = score
     return ClassRanking(
         class_id=class_id,
         class_name=class_obj.name if class_obj else "Unknown",

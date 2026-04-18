@@ -23,6 +23,13 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
 
 
+class ProfileUpdate(BaseModel):
+    """Fields a user can update on their own profile (no role/privilege changes)."""
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+
+
 class UserRead(BaseModel):
     id: int
     email: str
@@ -31,6 +38,7 @@ class UserRead(BaseModel):
     is_active: bool
     is_home_teacher: bool
     is_class_monitor: bool
+    must_change_password: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

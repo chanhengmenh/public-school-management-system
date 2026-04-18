@@ -1,408 +1,506 @@
-'use client';
+"use client";
 
-import React, { useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
-import {
-    FileText, Upload, X, PlayCircle, MoreVertical, Bell, File as File2, XCircle
-} from 'lucide-react';
+import { useEffect, useState, useCallback } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Loader2, Plus, Trash2, Send, AlertCircle, X, Users } from "lucide-react";
+import { assignmentsApi, gradeCategoriesApi } from "@/lib/api";
+import { Assignment, GradeCategory } from "@/types/school.types";
 
-// Helper: Format date to readable string
-const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-// Type Definitions
-type MaterialType = 'File' | 'Video';
-
-interface Material {
-    id: string;
-    title: string;
-    type: MaterialType;
-    publishedDate: string;
-    modifiedDate: string | null;
-    weekGroup: string;
-    fileUrl: string;
+interface NewAssignmentForm {
+  title: string;
+  description: string;
+  due_date: string;
+  max_score: number;
+  category_id: string;
+  submission_type: 'text' | 'file' | 'both';
 }
 
-// Dummy Data
-const initialMaterials: Material[] = [
-    { id: '1', title: 'Chapter 4: Forces and Motion', type: 'File', publishedDate: '15 May 2025', modifiedDate: null, weekGroup: 'Week 9', fileUrl: '#' },
-    { id: '2', title: 'Newton\'s Laws Overview', type: 'File', publishedDate: '13 May 2025', modifiedDate: '14 May 2025', weekGroup: 'Week 9', fileUrl: '#' },
-    { id: '3', title: 'Friction Experiment Demo', type: 'Video', publishedDate: '12 May 2025', modifiedDate: null, weekGroup: 'Week 9', fileUrl: '#' },
-    { id: '4', title: 'Chapter 3: Kinematics Recap', type: 'File', publishedDate: '08 May 2025', modifiedDate: null, weekGroup: 'Week 8', fileUrl: '#' },
-    { id: '5', title: 'Projectile Motion Simulator', type: 'File', publishedDate: '05 May 2025', modifiedDate: '07 May 2025', weekGroup: 'Week 8', fileUrl: '#' },
-];
+const EMPTY_FORM: NewAssignmentForm = {
+  title: "",
+  description: "",
+  due_date: "",
+  max_score: 100,
+  category_id: "",
+  submission_type: "text",
+};
 
-export default function TeacherClassMaterialPage() {
-    const params = useParams();
-    const subjectId = (params?.subjectId as string) || 'class-1';
+function StatusBadge({ status }: { status: Assignment["status"] }) {
+  const styles: Record<Assignment["status"], string> = {
+    draft: "bg-slate-100 text-slate-600 border-slate-200",
+    published: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    closed: "bg-red-50 text-red-700 border-red-200",
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${styles[status]}`}
+    >
+      {status}
+    </span>
+  );
+}
 
-    // Filter State
-    const [activeFilter, setActiveFilter] = useState('All');
+function formatDueDate(dateStr?: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-    // Materials State
-    const [materials, setMaterials] = useState<Material[]>(initialMaterials);
+export default function TeacherSubjectPage() {
+  const params = useParams();
+  const subjectId = parseInt(params.subjectId as string, 10);
 
-    // Modal States
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [categories, setCategories] = useState<GradeCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    // Form State for Modals
-    const [formTitle, setFormTitle] = useState('');
-    const [formType, setFormType] = useState<MaterialType>('File');
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<NewAssignmentForm>(EMPTY_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-    const filters = ['All', 'File', 'Video'];
+  const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-    // Derived Data: Filtered Materials
-    const filteredMaterials = materials.filter(m => activeFilter === 'All' || m.type === activeFilter);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [asns, cats] = await Promise.all([
+        assignmentsApi.list({ class_subject_id: subjectId }),
+        gradeCategoriesApi.list({ class_subject_id: subjectId }),
+      ]);
+      setAssignments(asns);
+      setCategories(cats);
+    } catch {
+      setError("Failed to load assignments.");
+    } finally {
+      setLoading(false);
+    }
+  }, [subjectId]);
 
-    // Derived Data: Grouped by Week
-    const groupedMaterials = filteredMaterials.reduce((acc, material) => {
-        if (!acc[material.weekGroup]) {
-            acc[material.weekGroup] = [];
-        }
-        acc[material.weekGroup].push(material);
-        return acc;
-    }, {} as Record<string, Material[]>);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-    // Helper: Get Icon based on Material Type
-    const getMaterialIcon = (type: MaterialType) => {
-        switch (type) {
-            case 'File': return <FileText className="w-5 h-5" />;
-            case 'Video': return <PlayCircle className="w-5 h-5" />;
-        }
-    };
+  function handleFormChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }
 
-    const getMaterialColors = (type: MaterialType) => {
-        switch (type) {
-            case 'File': return 'bg-blue-50 text-blue-600';
-            case 'Video': return 'bg-red-50 text-red-600';
-        }
-    };
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
 
-    // Handlers
-    const handleOpenEdit = (material: Material) => {
-        setEditingMaterial(material);
-        setFormTitle(material.title);
-        setFormType(material.type);
-        setIsEditModalOpen(true);
-    };
+    if (!form.title.trim()) {
+      setFormError("Title is required.");
+      return;
+    }
 
-    const handleCloseModals = () => {
-        setIsUploadModalOpen(false);
-        setIsEditModalOpen(false);
-        setEditingMaterial(null);
-        setFormTitle('');
-        setFormType('File');
-        setSelectedFile(null);
-        setIsDragging(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-    };
+    setSaving(true);
+    try {
+      const payload: Partial<Assignment> = {
+        class_subject_id: subjectId,
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        due_date: form.due_date || undefined,
+        max_score: Number(form.max_score),
+        category_id: form.category_id ? parseInt(form.category_id, 10) : null,
+        submission_type: form.submission_type,
+      };
+      const created = await assignmentsApi.create(payload);
+      setAssignments((prev) => [created, ...prev]);
+      setForm(EMPTY_FORM);
+      setShowForm(false);
+    } catch {
+      setFormError("Failed to create assignment. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
-    // File Upload Handlers
-    const handleFileSelect = (file: File) => {
-        const maxSize = 50 * 1024 * 1024; // 50MB
-        const allowedTypes = [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'video/mp4'
-        ];
-        const allowedExtensions = ['.pdf', '.docx', '.pptx', '.mp4'];
-        const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+  async function handlePublish(id: number) {
+    setPublishingId(id);
+    try {
+      const updated = await assignmentsApi.publish(id);
+      setAssignments((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    } catch {
+      alert("Failed to publish assignment.");
+    } finally {
+      setPublishingId(null);
+    }
+  }
 
-        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-            alert('Invalid file type. Please upload PDF, DOCX, PPTX, or MP4 files.');
-            return;
-        }
-        if (file.size > maxSize) {
-            alert('File is too large. Maximum file size is 50MB.');
-            return;
-        }
-        setSelectedFile(file);
-    };
+  async function handleDelete(id: number) {
+    if (!confirm("Delete this assignment? This action cannot be undone.")) return;
+    setDeletingId(id);
+    try {
+      await assignmentsApi.delete(id);
+      setAssignments((prev) => prev.filter((a) => a.id !== id));
+    } catch {
+      alert("Failed to delete assignment.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
-    const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) handleFileSelect(file);
-    };
+  function getCategoryName(categoryId?: number | null): string {
+    if (!categoryId) return "—";
+    const cat = categories.find((c) => c.id === categoryId);
+    return cat ? cat.name : "—";
+  }
 
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file) handleFileSelect(file);
-    };
-
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragging(false);
-    };
-
-    const formatFileSize = (bytes: number) => {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    };
-
-    const getFileIcon = (fileName: string) => {
-        const ext = fileName.split('.').pop()?.toLowerCase();
-        if (ext === 'mp4') return <PlayCircle className="w-5 h-5" />;
-        return <File2 className="w-5 h-5" />;
-    };
-
-    const handleSave = () => {
-        const now = formatDate(new Date());
-
-        if (isEditModalOpen && editingMaterial) {
-            setMaterials(prev => prev.map(m =>
-                m.id === editingMaterial.id
-                    ? { ...m, title: formTitle, type: formType, modifiedDate: now }
-                    : m
-            ));
-            // Auto-notify students about update
-            console.log(`📢 Notification sent to students: Material "${formTitle}" has been updated.`);
-        } else if (isUploadModalOpen) {
-            const newMaterial: Material = {
-                id: Math.random().toString(),
-                title: formTitle || 'Untitled Material',
-                type: formType,
-                publishedDate: now,
-                modifiedDate: null,
-                weekGroup: 'Week 9',
-                fileUrl: '#'
-            };
-            setMaterials([newMaterial, ...materials]);
-            // Auto-notify students about new material
-            console.log(`📢 Notification sent to students: New material "${formTitle || 'Untitled Material'}" has been published.`);
-        }
-        handleCloseModals();
-    };
-
+  if (loading) {
     return (
-        <>
-            {/* Class Material Content Area */}
-            <div className="flex flex-col space-y-8">
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
+    );
+  }
 
-                {/* Filter Bar */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <select
-                        value={activeFilter}
-                        onChange={(e) => setActiveFilter(e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px] bg-[right_8px_center] bg-no-repeat pr-10"
-                    >
-                        {filters.map(filter => (
-                            <option key={filter} value={filter}>
-                                {filter}
-                            </option>
-                        ))}
-                    </select>
-                    <button
-                        onClick={() => setIsUploadModalOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-2 shrink-0"
-                    >
-                        <Upload className="w-4 h-4" />
-                        Upload Material
-                    </button>
-                </div>
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p className="text-sm">{error}</p>
+        <button
+          onClick={loadData}
+          className="text-sm text-orange-600 hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
-                {/* Material List (Grouped by Week) */}
-                <div className="flex flex-col gap-10">
-                    {Object.keys(groupedMaterials).map(week => (
-                        <div key={week} className="flex flex-col gap-4">
-                            <h3 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2">{week}</h3>
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Assignments</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {assignments.length} assignment{assignments.length !== 1 ? "s" : ""} total
+          </p>
+        </div>
+        {!showForm && (
+          <button
+            onClick={() => {
+              setShowForm(true);
+              setFormError(null);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            New Assignment
+          </button>
+        )}
+      </div>
 
-                            <div className="flex flex-col gap-4">
-                                {groupedMaterials[week].map(material => (
-                                    <div key={material.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow group">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${getMaterialColors(material.type)}`}>
-                                            {getMaterialIcon(material.type)}
-                                        </div>
-                                        <div className="flex-1 min-w-0 flex flex-col">
-                                            <h4 className="text-sm font-bold text-slate-900 truncate" title={material.title}>{material.title}</h4>
-                                            <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                                <span className="text-xs font-medium text-slate-500">
-                                                    {material.type}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                                                    Published {material.publishedDate}
-                                                </span>
-                                                {material.modifiedDate && (
-                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                                                        <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                                                        Modified {material.modifiedDate}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => handleOpenEdit(material)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0"
-                                        >
-                                            <MoreVertical className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+      {/* Create form */}
+      {showForm && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-semibold text-slate-900">New Assignment</h2>
+            <button
+              onClick={() => {
+                setShowForm(false);
+                setForm(EMPTY_FORM);
+                setFormError(null);
+              }}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
 
+          <form onSubmit={handleCreate} className="space-y-4">
+            {/* Title */}
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={form.title}
+                onChange={handleFormChange}
+                placeholder="e.g. Midterm Exam"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                required
+              />
             </div>
 
-            {/* Upload & Edit Modals */}
-            {(isUploadModalOpen || isEditModalOpen) && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col my-auto max-h-[90vh] overflow-y-auto hidden-scrollbar">
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleFormChange}
+                placeholder="Assignment instructions (optional)"
+                rows={3}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none"
+              />
+            </div>
 
-                        <div className="flex items-center justify-between p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
-                            <h2 className="text-xl font-bold text-slate-900">
-                                {isEditModalOpen ? 'Edit Material' : 'Upload Class Material'}
-                            </h2>
-                            <button onClick={handleCloseModals} className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 rounded-full transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
+            {/* Due date + Max score */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Due Date
+                </label>
+                <input
+                  type="datetime-local"
+                  name="due_date"
+                  value={form.due_date}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Max Score
+                </label>
+                <input
+                  type="number"
+                  name="max_score"
+                  value={form.max_score}
+                  onChange={handleFormChange}
+                  min={1}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                />
+              </div>
+            </div>
 
-                        <div className="p-6 flex flex-col gap-5">
-                            {/* Title Input */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-slate-700">Material Title</label>
-                                <input
-                                    type="text"
-                                    value={formTitle}
-                                    onChange={(e) => setFormTitle(e.target.value)}
-                                    placeholder="e.g. Chapter 4 Motion Graphs"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:font-normal"
-                                />
-                            </div>
+            {/* Submission type */}
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-2">
+                Submission Type <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-3">
+                {(["text", "file", "both"] as const).map((t) => {
+                  const labels = { text: "Text only", file: "File upload only", both: "Text + File" };
+                  return (
+                    <label
+                      key={t}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm cursor-pointer transition-colors ${
+                        form.submission_type === t
+                          ? "border-orange-400 bg-orange-50 text-orange-700 font-medium"
+                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="submission_type"
+                        value={t}
+                        checked={form.submission_type === t}
+                        onChange={handleFormChange}
+                        className="sr-only"
+                      />
+                      {labels[t]}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
-                            {/* Type Select (Full Width) */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-bold text-slate-700">Type</label>
-                                <select
-                                    value={formType}
-                                    onChange={(e) => setFormType(e.target.value as MaterialType)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-900 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010L12%2015L17%2010%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px] bg-[right_12px_center] bg-no-repeat pr-10"
-                                >
-                                    <option value="File">File</option>
-                                    <option value="Video">Video</option>
-                                </select>
-                            </div>
+            {/* Category */}
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Category
+              </label>
+              <select
+                name="category_id"
+                value={form.category_id}
+                onChange={handleFormChange}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
+              >
+                <option value="">— No category —</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name} ({(cat.weight * 100).toFixed(0)}%)
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                            {/* File Upload Dropzone */}
-                            <div className="flex flex-col gap-2 mt-2">
-                                <label className="text-sm font-bold text-slate-700">Attached File</label>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".pdf,.docx,.pptx,.mp4"
-                                    onChange={handleFileInputChange}
-                                    className="hidden"
-                                />
-
-                                {!selectedFile ? (
-                                    <div
-                                        onClick={() => fileInputRef.current?.click()}
-                                        onDrop={handleDrop}
-                                        onDragOver={handleDragOver}
-                                        onDragLeave={handleDragLeave}
-                                        className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer group ${isDragging
-                                                ? 'border-blue-400 bg-blue-50'
-                                                : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300'
-                                            }`}
-                                    >
-                                        <div className={`w-12 h-12 rounded-full shadow-sm flex items-center justify-center mb-3 transition-transform group-hover:scale-105 ${isDragging ? 'bg-blue-100' : 'bg-white'
-                                            }`}>
-                                            <Upload className={`w-5 h-5 ${isDragging ? 'text-blue-600' : 'text-blue-500'}`} />
-                                        </div>
-                                        <span className="text-sm font-bold text-slate-700">
-                                            {isDragging ? 'Drop your file here' : 'Click to upload or drag & drop'}
-                                        </span>
-                                        <span className="text-xs font-medium text-slate-500 mt-1">PDF, DOCX, PPTX or MP4 (max. 50MB)</span>
-                                    </div>
-                                ) : (
-                                    <div className="border border-slate-200 bg-white rounded-2xl p-4 flex items-center gap-4">
-                                        <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-                                            {getFileIcon(selectedFile.name)}
-                                        </div>
-                                        <div className="flex-1 min-w-0 flex flex-col">
-                                            <span className="text-sm font-bold text-slate-900 truncate" title={selectedFile.name}>{selectedFile.name}</span>
-                                            <span className="text-xs font-medium text-slate-500 mt-0.5">{formatFileSize(selectedFile.size)}</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedFile(null);
-                                                if (fileInputRef.current) fileInputRef.current.value = '';
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                                            title="Remove file"
-                                        >
-                                            <XCircle className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Auto Notification Info */}
-                            <div className="flex items-center gap-3 bg-blue-50/70 border border-blue-100 rounded-xl px-4 py-3">
-                                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
-                                    <Bell className="w-4 h-4 text-blue-600" />
-                                </div>
-                                <p className="text-xs font-medium text-blue-700">
-                                    Students will be automatically notified when this material is {isEditModalOpen ? 'updated' : 'published'}.
-                                </p>
-                            </div>
-
-                            {/* Auto-tracked Date Info */}
-                            {isEditModalOpen && editingMaterial && (
-                                <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tracking Info</span>
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-                                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                                            Published: {editingMaterial.publishedDate}
-                                        </span>
-                                        {editingMaterial.modifiedDate && (
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
-                                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                                                Last Modified: {editingMaterial.modifiedDate}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-slate-400 mt-0.5">Dates are automatically tracked when you save changes.</p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 sticky bottom-0">
-                            <button
-                                onClick={handleCloseModals}
-                                className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-500/20 transition-all active:scale-95"
-                            >
-                                {isEditModalOpen ? 'Save Changes' : 'Publish Material'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {formError && (
+              <p className="text-xs text-red-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {formError}
+              </p>
             )}
-        </>
-    );
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                Save Assignment
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setForm(EMPTY_FORM);
+                  setFormError(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Assignments table */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        {assignments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <AlertCircle className="h-10 w-10 text-slate-300 mb-3" />
+            <p className="text-slate-900 font-medium">No assignments yet</p>
+            <p className="text-slate-500 text-sm mt-1">
+              Click "New Assignment" to create your first one.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Title
+                  </th>
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Due Date
+                  </th>
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
+                    Max Score
+                  </th>
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {assignments.map((asn) => (
+                  <tr key={asn.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-slate-900 text-sm">{asn.title}</p>
+                      {asn.description && (
+                        <p className="text-slate-400 text-xs mt-0.5 truncate max-w-xs">
+                          {asn.description}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {getCategoryName(asn.category_id)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {formatDueDate(asn.due_date)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-700 text-right font-medium">
+                      {asn.max_score}
+                    </td>
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const typeStyles: Record<string, string> = {
+                          text: "bg-blue-50 text-blue-700 border-blue-200",
+                          file: "bg-purple-50 text-purple-700 border-purple-200",
+                          both: "bg-teal-50 text-teal-700 border-teal-200",
+                        };
+                        const typeLabels: Record<string, string> = {
+                          text: "Text",
+                          file: "File",
+                          both: "Both",
+                        };
+                        const t = asn.submission_type ?? "text";
+                        return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${typeStyles[t] ?? typeStyles.text}`}>
+                            {typeLabels[t] ?? t}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={asn.status} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        {asn.status !== "draft" && (
+                          <Link
+                            href={`/teacher/classes/${subjectId}/submissions/${asn.id}`}
+                            title="View Submissions"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 transition-colors"
+                          >
+                            <Users className="h-3 w-3" />
+                            Submissions
+                          </Link>
+                        )}
+                        {asn.status === "draft" && (
+                          <button
+                            onClick={() => handlePublish(asn.id)}
+                            disabled={publishingId === asn.id}
+                            title="Publish"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium rounded-lg border border-emerald-200 disabled:opacity-60 transition-colors"
+                          >
+                            {publishingId === asn.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Send className="h-3 w-3" />
+                            )}
+                            Publish
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(asn.id)}
+                          disabled={deletingId === asn.id}
+                          title="Delete"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60"
+                        >
+                          {deletingId === asn.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

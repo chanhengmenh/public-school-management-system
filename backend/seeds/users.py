@@ -16,6 +16,7 @@ SEED_USERS = [
     {"email": "pe.teacher@iams.edu",      "full_name": "Vibol Tep",     "role": UserRole.teacher, "password": "password123"},
     {"email": "art.teacher@iams.edu",     "full_name": "Leakena Ros",   "role": UserRole.teacher, "password": "password123"},
     {"email": "music.teacher@iams.edu",   "full_name": "Chantha Im",    "role": UserRole.teacher, "password": "password123"},
+    {"email": "khmer.teacher@iams.edu",   "full_name": "Chanthy Noun",  "role": UserRole.teacher, "password": "password123"},
 ]
 
 # Generate student list dynamically
@@ -47,6 +48,7 @@ def seed(db: Session) -> dict:
             hashed_password=hash_password(u["password"]),
             is_home_teacher=False,
             is_class_monitor=False,
+            must_change_password=False,  # Demo accounts don't require password change
         )
         db.add(user)
         db.flush()
@@ -75,6 +77,7 @@ def seed(db: Session) -> dict:
             hashed_password=hash_password("password123"),
             is_home_teacher=False,
             is_class_monitor=is_monitor,
+            must_change_password=False,  # Demo accounts
         )
         db.add(user)
         db.flush()

@@ -3,33 +3,27 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ChevronDown } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function LoginPage() {
-    const router = useRouter();
+    const { login, loading: authLoading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState('student');
-    const [subRole, setSubRole] = useState('normal');
+    const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Set the mock authentication cookie for the middleware to read
-        document.cookie = `mock_role=${role}; path=/; max-age=86400`;
-        document.cookie = `mock_sub_role=${subRole}; path=/; max-age=86400`;
-
-        // Trigger the redirect
-        if (role === 'admin') router.push('/admin');
-        else if (role === 'teacher') router.push('/teacher');
-        else router.push('/student');
-    };
-
-    const renderRoleIcon = () => {
-        if (role === 'student') return <GraduationCap className="h-4 w-4 text-slate-400" />;
-        if (role === 'teacher') return <User className="h-4 w-4 text-slate-400" />;
-        if (role === 'admin') return <Shield className="h-4 w-4 text-slate-400" />;
-        return <User className="h-4 w-4 text-slate-400" />;
+        setError(null);
+        
+        try {
+            await login({ email, password });
+        } catch (err: unknown) {
+            console.error("Login error:", err);
+            const apiError = err as { data?: { detail?: string } };
+            setError(apiError.data?.detail || "Invalid email or password. Please try again.");
+        }
     };
 
     return (
@@ -46,53 +40,12 @@ export default function LoginPage() {
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
-                    {/* Sign In As */}
-                    <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
-                            Sign In As
-                        </label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                {renderRoleIcon()}
-                            </div>
-                            <select
-                                value={role}
-                                onChange={(e) => setRole(e.target.value)}
-                                className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
-                            >
-                                <option value="student">Student</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                            </div>
+                    {error && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm text-center">
+                            {error}
                         </div>
-                    </div>
-
-                    {/* Sub Role */}
-                    <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
-                            🧪 Test Environment: Select Sub-Role
-                        </label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <Shield className="h-4 w-4 text-slate-400" />
-                            </div>
-                            <select
-                                value={subRole}
-                                onChange={(e) => setSubRole(e.target.value)}
-                                className="block w-full pl-10 pr-10 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white appearance-none focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors cursor-pointer text-sm"
-                            >
-                                <option value="normal">Normal</option>
-                                <option value="monitor">Class Monitor</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </div>
-                    </div>
-
+                    )}
+                    
                     {/* Email Address */}
                     <div className="space-y-2">
                         <label className="block text-xs uppercase tracking-wider font-semibold text-slate-400">
@@ -154,9 +107,14 @@ export default function LoginPage() {
                     {/* Submit Button */}
                     <button
                         type="submit"
-                        className="w-full flex items-center justify-center py-3.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 focus:ring-offset-slate-900 mt-6 text-sm"
+                        disabled={authLoading}
+                        className="w-full flex items-center justify-center py-3.5 px-4 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-800 disabled:text-slate-500 text-slate-900 font-bold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 focus:ring-offset-slate-900 mt-6 text-sm"
                     >
-                        <span>Sign In &rarr;</span>
+                        {authLoading ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                            <span>Sign In &rarr;</span>
+                        )}
                     </button>
                 </form>
 

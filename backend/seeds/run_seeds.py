@@ -10,6 +10,7 @@ from app.database import SessionLocal
 from seeds import (
     users, classes, subjects, class_subjects,
     enrollments, assignments, submissions, grades, attendance,
+    schedules, notifications,
 )
 
 
@@ -43,6 +44,12 @@ def run():
         print("Seeding attendance (10 school days)...")
         attendance.seed(db, seeded_classes, seeded_users)
 
+        print("Seeding schedules (Class 10A–10D timetables)...")
+        schedules.seed(db, seeded_classes, seeded_subjects, seeded_cs)
+
+        print("Seeding notifications (student001–005)...")
+        notifications.seed(db, seeded_users)
+
         print("\nAll seeds completed successfully!")
         print("\nSample credentials (password: password123)")
         print("  Admin:              admin@iams.edu")
@@ -51,8 +58,9 @@ def run():
         print("  Physics teacher:    physics.teacher@iams.edu (home class: Class 10C)")
         print("  History teacher:    history.teacher@iams.edu (home class: Class 10D)")
         print("  CS teacher:         cs.teacher@iams.edu")
-        print("  Student:            student001@iams.edu (Class 10A, class monitor)")
-        print("  Student:            student002@iams.edu (Class 10A)")
+        print("  Khmer teacher:      khmer.teacher@iams.edu")
+        print("  Student:            student001@iams.edu (Class 10A, class monitor, has notifications)")
+        print("  Student:            student002@iams.edu (Class 10A, has notifications)")
     except Exception as e:
         db.rollback()
         print(f"\nSeed error: {e}")

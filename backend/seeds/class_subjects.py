@@ -34,6 +34,8 @@ SUBJECT_TEACHER_MAP = {
     "PE101":   "pe.teacher@iams.edu",
     "ART101":  "art.teacher@iams.edu",
     "MUS101":  "music.teacher@iams.edu",
+    "KH101":   "khmer.teacher@iams.edu",
+    "GEO101":  "history.teacher@iams.edu",   # History teacher covers Geography
 }
 
 HOME_CLASS_MAP = {

@@ -4,7 +4,9 @@ from app.config import settings
 from app.routers import (
     auth, users, classes, subjects, class_subjects,
     enrollments, assignments, submissions, behavior_logs,
-    grades, attendance, files, analytics,
+    grades, attendance, files, analytics, grade_categories,
+    schedules,
+    notifications,
 )
 
 app = FastAPI(
@@ -34,6 +36,9 @@ app.include_router(grades.router)
 app.include_router(attendance.router)
 app.include_router(files.router)
 app.include_router(analytics.router)
+app.include_router(grade_categories.router)
+app.include_router(schedules.router)
+app.include_router(notifications.router)
 
 
 @app.get("/health")

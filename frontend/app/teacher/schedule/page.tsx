@@ -1,270 +1,208 @@
-'use client';
+"use client";
 
-import React, { useState, useRef } from 'react';
-import Link from 'next/link';
-import { Calendar, ChevronDown, Clock, MapPin, Users } from 'lucide-react';
-import PageHeader from '@/components/layouts/PageHeader';
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { Loader2, Calendar, MapPin, AlertCircle, Clock } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { schedulesApi } from "@/lib/api";
+import { Schedule } from "@/lib/api/schedules";
+import Link from "next/link";
 
-// --- Types ---
-interface ScheduleBlock {
-    type: 'Class' | 'Prep' | 'Meeting';
-    subject: string;
-    students?: number;
-    room: string;
-    bg: string;
-    borderL: string;
-    borderAll: string;
-    text: string;
-    link?: string;
-}
+const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"] as const;
+const DAY_LABELS: Record<string, string> = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
+};
 
-interface TimeSlot {
-    time: string;
-    isLunch?: boolean;
-    blocks?: (ScheduleBlock | null)[];
+const PALETTE = [
+  "border-l-orange-400",
+  "border-l-blue-400",
+  "border-l-emerald-400",
+  "border-l-purple-400",
+  "border-l-rose-400",
+  "border-l-amber-400",
+  "border-l-teal-400",
+  "border-l-pink-400",
+];
+
+function formatTime(t: string): string {
+  const [h, m] = t.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${h12}:${m} ${ampm}`;
 }
 
 export default function TeacherSchedulePage() {
-    const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
-    const [selectedDay, setSelectedDay] = useState<string>('Monday');
-    const [currentDate, setCurrentDate] = useState<string>('');
-    const dateInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const loadSchedule = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await schedulesApi.list({ teacher_id: user.id });
+      setSchedules(data);
+    } catch {
+      setError("Failed to load schedule. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
-    // --- Teacher-Specific Dummy Data ---
-    const scheduleData: TimeSlot[] = [
-        {
-            time: '8:00 AM',
-            blocks: [
-                { type: 'Class', subject: 'Physics 11A', students: 32, room: 'Room 304', bg: 'bg-blue-50', borderL: 'border-l-blue-500', borderAll: 'border-blue-100', text: 'text-blue-800', link: '/teacher/classes/class-1' },
-                null,
-                { type: 'Class', subject: 'Physics 11A', students: 32, room: 'Room 304', bg: 'bg-blue-50', borderL: 'border-l-blue-500', borderAll: 'border-blue-100', text: 'text-blue-800', link: '/teacher/classes/class-1' },
-                null,
-                { type: 'Class', subject: 'Physics 11A', students: 32, room: 'Room 304', bg: 'bg-blue-50', borderL: 'border-l-blue-500', borderAll: 'border-blue-100', text: 'text-blue-800', link: '/teacher/classes/class-1' },
-            ]
-        },
-        {
-            time: '9:00 AM',
-            blocks: [
-                null,
-                { type: 'Class', subject: 'Physics 11B', students: 30, room: 'Room 304', bg: 'bg-teal-50', borderL: 'border-l-teal-500', borderAll: 'border-teal-100', text: 'text-teal-800', link: '/teacher/classes/class-3' },
-                null,
-                { type: 'Class', subject: 'Physics 11B', students: 30, room: 'Room 304', bg: 'bg-teal-50', borderL: 'border-l-teal-500', borderAll: 'border-teal-100', text: 'text-teal-800', link: '/teacher/classes/class-3' },
-                null,
-            ]
-        },
-        {
-            time: '10:00 AM',
-            blocks: [
-                null,
-                { type: 'Class', subject: 'Intro Physics 10A', students: 35, room: 'Room 201', bg: 'bg-orange-50', borderL: 'border-l-orange-500', borderAll: 'border-orange-100', text: 'text-orange-800', link: '/teacher/classes/class-4' },
-                null,
-                { type: 'Class', subject: 'Intro Physics 10A', students: 35, room: 'Room 201', bg: 'bg-orange-50', borderL: 'border-l-orange-500', borderAll: 'border-orange-100', text: 'text-orange-800', link: '/teacher/classes/class-4' },
-                null,
-            ]
-        },
-        {
-            time: '11:00 AM',
-            blocks: [
-                { type: 'Class', subject: 'Adv. Physics 12A', students: 28, room: 'Room 305', bg: 'bg-purple-50', borderL: 'border-l-purple-500', borderAll: 'border-purple-100', text: 'text-purple-800', link: '/teacher/classes/class-2' },
-                null,
-                { type: 'Class', subject: 'Adv. Physics 12A', students: 28, room: 'Room 305', bg: 'bg-purple-50', borderL: 'border-l-purple-500', borderAll: 'border-purple-100', text: 'text-purple-800', link: '/teacher/classes/class-2' },
-                null,
-                { type: 'Class', subject: 'Adv. Physics 12A', students: 28, room: 'Room 305', bg: 'bg-purple-50', borderL: 'border-l-purple-500', borderAll: 'border-purple-100', text: 'text-purple-800', link: '/teacher/classes/class-2' },
-            ]
-        },
-        {
-            time: '12:00 PM',
-            isLunch: true,
-        },
-        {
-            time: '1:00 PM',
-            blocks: [
-                { type: 'Meeting', subject: 'Dept Meeting', room: 'Conf. Room B', bg: 'bg-emerald-50', borderL: 'border-l-emerald-500', borderAll: 'border-emerald-100', text: 'text-emerald-800' },
-                null,
-                null,
-                null,
-                null,
-            ]
-        },
-        {
-            time: '2:00 PM',
-            blocks: [
-                null,
-                { type: 'Meeting', subject: 'Parent Conf.', room: 'Meeting Rm A', bg: 'bg-emerald-50', borderL: 'border-l-emerald-500', borderAll: 'border-emerald-100', text: 'text-emerald-800' },
-                null,
-                null,
-                null,
-            ]
-        },
-        {
-            time: '3:00 PM',
-            blocks: [
-                null,
-                null,
-                null,
-                null,
-                { type: 'Meeting', subject: 'Staff Meeting', room: 'Auditorium', bg: 'bg-emerald-50', borderL: 'border-l-emerald-500', borderAll: 'border-emerald-100', text: 'text-emerald-800' },
-            ]
-        },
-    ];
+  useEffect(() => {
+    loadSchedule();
+  }, [loadSchedule]);
 
-    const displayedDays = viewMode === 'week' ? days : [selectedDay];
-    const gridColsClass = viewMode === 'week'
-        ? "grid-cols-[80px_repeat(5,1fr)] md:grid-cols-[100px_repeat(5,1fr)] min-w-[900px]"
-        : "grid-cols-[80px_1fr] md:grid-cols-[100px_1fr] min-w-[400px]";
+  // Group by day
+  const byDay = useMemo(() => {
+    const map = new Map<string, Schedule[]>();
+    for (const day of DAYS) {
+      map.set(day, []);
+    }
+    for (const s of schedules) {
+      const arr = map.get(s.day_of_week);
+      if (arr) arr.push(s);
+    }
+    // Sort each day by start_time
+    for (const arr of map.values()) {
+      arr.sort((a, b) => a.start_time.localeCompare(b.start_time));
+    }
+    return map;
+  }, [schedules]);
 
-    const renderBlockContent = (block: ScheduleBlock) => (
-        <div className={`h-full w-full rounded-xl p-3 flex flex-col justify-center border-y border-r border-l-4 ${block.bg} ${block.borderAll} ${block.borderL} ${block.link ? 'hover:-translate-y-0.5 transition-transform cursor-pointer shadow-sm' : ''}`}>
-            <h4 className={`font-bold text-sm ${block.text} line-clamp-1`}>{block.subject}</h4>
-            {block.type === 'Class' && block.students && (
-                <div className="mt-1.5 flex items-center gap-1 text-xs text-slate-500 font-medium">
-                    <Users className="w-3 h-3 shrink-0" />
-                    <span>{block.students} students</span>
-                </div>
-            )}
-            <div className="mt-1 flex items-center gap-1 text-xs text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                <MapPin className="w-3 h-3 shrink-0" />
-                <span>{block.room}</span>
-            </div>
-        </div>
-    );
+  // Subject → color index
+  const subjectColorIdx = useMemo(() => {
+    const map = new Map<number, number>();
+    let idx = 0;
+    for (const s of schedules) {
+      if (!map.has(s.class_subject_id)) {
+        map.set(s.class_subject_id, idx++);
+      }
+    }
+    return map;
+  }, [schedules]);
 
+  if (loading) {
     return (
-        <div className="min-h-screen bg-slate-50">
-            <PageHeader
-                title="My Schedule"
-                subtitle="Manage your daily classes and weekly timetable"
-            />
-
-            <div className="px-6 lg:px-8 pb-8 pt-6">
-                {/* Top Action Bar */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    {/* Interactive Calendar Button */}
-                    <button
-                        onClick={() => dateInputRef.current?.showPicker?.()}
-                        className="relative flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                        <Calendar className="w-4 h-4 text-slate-500 shrink-0" />
-                        <span className="whitespace-nowrap">{currentDate ? new Date(currentDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Mar 2 - Mar 6, 2026"}</span>
-                        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
-                        <input
-                            ref={dateInputRef}
-                            type="date"
-                            className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
-                            value={currentDate}
-                            onChange={(e) => setCurrentDate(e.target.value)}
-                        />
-                    </button>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* View Toggles */}
-                        <div className="flex items-center bg-slate-100 rounded-xl p-1 text-sm font-bold text-slate-600 border border-slate-200">
-                            <button
-                                onClick={() => setViewMode('week')}
-                                className={`px-4 py-1.5 rounded-lg transition-colors ${viewMode === 'week' ? 'bg-white shadow-sm text-slate-800' : 'hover:bg-slate-200 text-slate-500'}`}
-                            >
-                                Week
-                            </button>
-                            <button
-                                onClick={() => setViewMode('day')}
-                                className={`px-4 py-1.5 rounded-lg transition-colors ${viewMode === 'day' ? 'bg-white shadow-sm text-slate-800' : 'hover:bg-slate-200 text-slate-500'}`}
-                            >
-                                Day
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Day Selector - Shown in Day View */}
-                {viewMode === 'day' && (
-                    <div className="flex items-center gap-2 mb-6">
-                        {days.map((day) => (
-                            <button
-                                key={day}
-                                onClick={() => setSelectedDay(day)}
-                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${selectedDay === day
-                                    ? 'bg-slate-900 text-white shadow-sm'
-                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                                    }`}
-                            >
-                                {day.slice(0, 3)}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {/* Timetable Grid Container */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <div className={`grid ${gridColsClass}`}>
-                            {/* Header Row */}
-                            <div className="border-b border-r border-slate-200 bg-slate-50 text-xs font-bold text-slate-400 text-right pr-4 pb-2 flex flex-col justify-end">
-                                Time / Day
-                            </div>
-
-                            {displayedDays.map((day, idx) => (
-                                <div
-                                    key={idx}
-                                    onClick={() => {
-                                        if (viewMode === 'week') {
-                                            setViewMode('day');
-                                            setSelectedDay(day);
-                                        }
-                                    }}
-                                    className={`bg-slate-50 text-center text-xs font-bold text-slate-500 tracking-wider py-4 border-b border-slate-200 uppercase ${viewMode === 'week' ? 'cursor-pointer hover:bg-slate-200 transition-colors' : ''} ${idx !== displayedDays.length - 1 ? 'border-r' : ''}`}
-                                >
-                                    {day}
-                                </div>
-                            ))}
-
-                            {/* Time Slots */}
-                            {scheduleData.map((slot, rowIndex) => (
-                                <React.Fragment key={rowIndex}>
-                                    {/* Time Column */}
-                                    <div className="text-sm font-medium text-slate-400 text-right pr-4 py-6 border-b border-r border-slate-100 flex flex-col items-end">
-                                        <span className="-mt-3 bg-white px-1 leading-none">{slot.time}</span>
-                                    </div>
-
-                                    {/* Day Columns */}
-                                    {slot.isLunch ? (
-                                        <div className={`${viewMode === 'week' ? 'col-span-5' : 'col-span-1'} border-b border-slate-100 bg-slate-50 flex items-center justify-center h-20 relative overflow-hidden`}>
-                                            <div className="flex items-center gap-2 text-sm font-bold text-slate-500 bg-white/80 py-2 px-6 rounded-full border border-slate-200 shadow-sm z-10 backdrop-blur-sm">
-                                                <Clock className="w-4 h-4" />
-                                                Lunch Break
-                                            </div>
-                                            <div className="absolute inset-0 opacity-50" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, #f1f5f9 10px, #f1f5f9 20px)" }}></div>
-                                        </div>
-                                    ) : (
-                                        displayedDays.map((targetDay, colIndex) => {
-                                            const dayIndex = days.indexOf(targetDay);
-                                            const block = slot.blocks ? slot.blocks[dayIndex] : null;
-
-                                            return (
-                                                <div
-                                                    key={colIndex}
-                                                    className={`border-b border-slate-50 p-2 min-h-[120px] ${colIndex !== displayedDays.length - 1 ? 'border-r' : ''}`}
-                                                >
-                                                    {block ? (
-                                                        block.link ? (
-                                                            <Link href={block.link} className="block h-full">
-                                                                {renderBlockContent(block)}
-                                                            </Link>
-                                                        ) : (
-                                                            renderBlockContent(block)
-                                                        )
-                                                    ) : null}
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-500">
+          <AlertCircle className="h-8 w-8 text-red-400" />
+          <p>{error}</p>
+          <button
+            onClick={loadSchedule}
+            className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 lg:p-8 bg-slate-50 min-h-screen">
+      {/* Page header */}
+      <div className="mb-8 flex items-start gap-4">
+        <div className="p-3 bg-orange-50 border border-orange-100 rounded-xl flex-shrink-0">
+          <Calendar className="h-6 w-6 text-orange-500" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">My Schedule</h1>
+          <p className="text-slate-500 mt-1 text-sm">
+            Your teaching schedule for the current term
+          </p>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="mb-6">
+        <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <Clock className="h-4 w-4 text-orange-500" />
+          <span className="text-sm font-medium text-slate-700">
+            {schedules.length} session{schedules.length !== 1 ? "s" : ""} per week
+          </span>
+        </div>
+      </div>
+
+      {schedules.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm max-w-sm">
+            <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-900 font-semibold mb-1">No schedule yet</p>
+            <p className="text-slate-500 text-sm">
+              Contact your administrator to set up your teaching schedule.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {DAYS.map((day) => {
+            const entries = byDay.get(day) ?? [];
+            if (entries.length === 0) return null;
+
+            return (
+              <div key={day}>
+                <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">
+                  {DAY_LABELS[day]}
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {entries.map((entry) => {
+                    const colorIdx = subjectColorIdx.get(entry.class_subject_id) ?? 0;
+                    const colorClass = PALETTE[colorIdx % PALETTE.length];
+
+                    return (
+                      <Link
+                        key={entry.id}
+                        href={`/teacher/classes/${entry.class_subject_id}`}
+                        className={`bg-white border border-slate-200 border-l-4 ${colorClass} rounded-2xl shadow-sm p-5 hover:shadow-md transition-shadow`}
+                      >
+                        <div className="mb-2">
+                          <p className="font-semibold text-slate-900 text-base">
+                            {entry.subject_name ?? "Unnamed Subject"}
+                          </p>
+                          <p className="text-slate-500 text-sm mt-0.5">
+                            {entry.class_name ?? "Unknown Class"}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          <span>
+                            {formatTime(entry.start_time)} - {formatTime(entry.end_time)}
+                          </span>
+                        </div>
+
+                        {entry.room && (
+                          <div className="flex items-center gap-1.5 text-sm text-slate-500 mt-1">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{entry.room}</span>
+                          </div>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }

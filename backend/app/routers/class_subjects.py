@@ -10,12 +10,25 @@ from app.models.class_subject import ClassSubject
 router = APIRouter(prefix="/class-subjects", tags=["class-subjects"])
 
 
+@router.get("/{cs_id}", response_model=ClassSubjectRead)
+def get_class_subject(cs_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    obj = db.query(ClassSubject).options(
+        joinedload(ClassSubject.subject),
+        joinedload(ClassSubject.class_),
+        joinedload(ClassSubject.teacher),
+    ).filter(ClassSubject.id == cs_id).first()
+    if not obj:
+        raise NotFoundError(f"ClassSubject {cs_id} not found")
+    return obj
+
+
 @router.get("/", response_model=list[ClassSubjectRead])
 def list_class_subjects(class_id: int | None = None, teacher_id: int | None = None,
                          db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     q = db.query(ClassSubject).options(
         joinedload(ClassSubject.subject),
         joinedload(ClassSubject.class_),
+        joinedload(ClassSubject.teacher),
     )
     if class_id:
         q = q.filter(ClassSubject.class_id == class_id)

@@ -1,110 +1,183 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useParams } from 'next/navigation';
-import { Users, Mail, MoreVertical } from 'lucide-react';
+import { useEffect, useState, useCallback } from "react";
+import { useParams } from "next/navigation";
+import { Loader2, AlertCircle, Users, TrendingUp } from "lucide-react";
+import { client, classSubjectsApi } from "@/lib/api";
+import { User } from "@/types/user.types";
 
-// Dummy Student Data
-interface Student {
-    id: string;
-    name: string;
-    avatar: string;
-    email: string;
-    studentId: string;
-    status: 'Active' | 'Inactive';
-}
+export default function TeacherSubjectStudentsPage() {
+  const params = useParams();
+  const subjectId = parseInt(params.subjectId as string, 10);
 
-// TODO: Replace with API call — e.g. const students = await fetchStudentsByClass(subjectId);
-const STUDENTS_DATA: Student[] = [
-    { id: 's1', name: 'Alex Johnson', avatar: 'AJ', email: 'alex.j@school.edu', studentId: 'STU-2025-001', status: 'Active' },
-    { id: 's2', name: 'Maria Garcia', avatar: 'MG', email: 'maria.g@school.edu', studentId: 'STU-2025-002', status: 'Active' },
-    { id: 's3', name: 'James Smith', avatar: 'JS', email: 'james.s@school.edu', studentId: 'STU-2025-003', status: 'Active' },
-    { id: 's4', name: 'Linda Choo', avatar: 'LC', email: 'linda.c@school.edu', studentId: 'STU-2025-004', status: 'Active' },
-    { id: 's5', name: 'Robert Fox', avatar: 'RF', email: 'robert.f@school.edu', studentId: 'STU-2025-005', status: 'Active' },
-    { id: 's6', name: 'Emily Davis', avatar: 'ED', email: 'emily.d@school.edu', studentId: 'STU-2025-006', status: 'Active' },
-    { id: 's7', name: 'Michael Brown', avatar: 'MB', email: 'michael.b@school.edu', studentId: 'STU-2025-007', status: 'Active' },
-    { id: 's8', name: 'Sarah Wilson', avatar: 'SW', email: 'sarah.w@school.edu', studentId: 'STU-2025-008', status: 'Active' },
-    { id: 's9', name: 'Daniel Lee', avatar: 'DL', email: 'daniel.l@school.edu', studentId: 'STU-2025-009', status: 'Inactive' },
-    { id: 's10', name: 'Jessica Taylor', avatar: 'JT', email: 'jessica.t@school.edu', studentId: 'STU-2025-010', status: 'Active' },
-];
+  const [students, setStudents] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function TeacherStudentsPage() {
-    const params = useParams();
-    const subjectId = (params?.subjectId as string) || 'class-1';
+  const loadStudents = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const classSubject = await classSubjectsApi.getById(subjectId);
+      const classId = classSubject.class_id;
+      const data = await client.get<User[]>("/classes/" + classId + "/students");
+      setStudents(data);
+    } catch {
+      setError("Failed to load students. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [subjectId]);
 
-    // TODO: Replace STUDENTS_DATA with data fetched from API using subjectId
-    const students = STUDENTS_DATA;
+  useEffect(() => {
+    loadStudents();
+  }, [loadStudents]);
 
+  function getInitial(name: string): string {
+    return name.trim().charAt(0).toUpperCase();
+  }
+
+  const avatarColors = [
+    "bg-orange-100 text-orange-700",
+    "bg-blue-100 text-blue-700",
+    "bg-emerald-100 text-emerald-700",
+    "bg-purple-100 text-purple-700",
+    "bg-rose-100 text-rose-700",
+    "bg-amber-100 text-amber-700",
+  ];
+
+  function getAvatarColor(index: number): string {
+    return avatarColors[index % avatarColors.length];
+  }
+
+  if (loading) {
     return (
-        <div className="flex flex-col space-y-6">
-            {/* Top Bar */}
-            <div className="flex items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-slate-500" />
-                    <span className="text-sm font-bold text-slate-700">{students.length} Students Enrolled</span>
-                </div>
-            </div>
-
-            {/* Students Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
-                                <th className="p-4 pl-6">Student</th>
-                                <th className="p-4">Student ID</th>
-                                <th className="p-4">Email</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 pr-6 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {students.map((student) => (
-                                <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="p-4 pl-6">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold shrink-0 border border-indigo-200">
-                                                {student.avatar}
-                                            </div>
-                                            <span className="text-sm font-bold text-slate-900">{student.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className="text-sm text-slate-600 font-mono">{student.studentId}</span>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                                            <Mail className="w-3.5 h-3.5" />
-                                            {student.email}
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border ${student.status === 'Active'
-                                            ? 'bg-green-50 text-green-700 border-green-200'
-                                            : 'bg-slate-100 text-slate-500 border-slate-200'
-                                            }`}>
-                                            {student.status}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 pr-6 text-right">
-                                        <button className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-                                            <MoreVertical className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {students.length === 0 && (
-                    <div className="py-12 flex flex-col items-center justify-center text-center">
-                        <Users className="w-12 h-12 text-slate-300 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-900 mb-1">No Students Found</h3>
-                        <p className="text-sm text-slate-500">No students enrolled in this class.</p>
-                    </div>
-                )}
-            </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p className="text-sm">{error}</p>
+        <button
+          onClick={loadStudents}
+          className="text-sm text-orange-600 hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Students</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Class roster and student overview
+          </p>
+        </div>
+        <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+          <Users className="h-4 w-4 text-orange-500" />
+          <span className="text-sm font-medium text-slate-700">
+            {students.length} student{students.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        {students.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Users className="h-10 w-10 text-slate-300 mb-3" />
+            <p className="text-slate-900 font-medium">No students enrolled</p>
+            <p className="text-slate-500 text-sm mt-1">
+              Students will appear here once enrolled in this class.
+            </p>
+          </div>
+        ) : (
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider w-12">
+                  #
+                </th>
+                <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Student
+                </th>
+                <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Monitor
+                </th>
+                <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
+                  Score Trend
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {students.map((student, index) => (
+                <tr key={student.id} className="hover:bg-slate-50 transition-colors">
+                  {/* # */}
+                  <td className="px-6 py-4 text-sm text-slate-400">
+                    {index + 1}
+                  </td>
+
+                  {/* Student */}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${getAvatarColor(index)}`}
+                      >
+                        {getInitial(student.full_name)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-900 text-sm">
+                          {student.full_name}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Email */}
+                  <td className="px-6 py-4 text-sm text-slate-500">
+                    {student.email}
+                  </td>
+
+                  {/* Monitor badge */}
+                  <td className="px-6 py-4">
+                    {student.is_class_monitor ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                        Monitor
+                      </span>
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
+                  </td>
+
+                  {/* Score trend link */}
+                  <td className="px-6 py-4 text-right">
+                    <a
+                      href={`/teacher/classes/${subjectId}/analysis`}
+                      className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 hover:underline font-medium"
+                    >
+                      <TrendingUp className="h-3 w-3" />
+                      Class Analysis
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
 }
