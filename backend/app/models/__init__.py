@@ -13,6 +13,8 @@ from app.models.attendance import Attendance, AttendanceStatus
 from app.models.grade_category import GradeCategory
 from app.models.schedule import ClassSchedule, DayOfWeek
 from app.models.notification import Notification, NotificationType
+from app.models.announcement import Announcement, AnnouncementTarget
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "User", "UserRole",
@@ -29,4 +31,6 @@ __all__ = [
     "GradeCategory",
     "ClassSchedule", "DayOfWeek",
     "Notification", "NotificationType",
+    "Announcement", "AnnouncementTarget",
+    "AuditLog",
 ]

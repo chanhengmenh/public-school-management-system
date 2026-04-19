@@ -1,58 +1,37 @@
 from app.models.class_subject import ClassSubject
 from sqlalchemy.orm import Session
 
-# Each subject is taught by ONE specialist teacher across ALL 16 classes.
-# One teacher → one subject, teaches it in every class section.
-#
-#   math.teacher    (Sovann Keo)    — MATH101
-#   physics.teacher (Piseth Rath)   — PHYS101
-#   chem.teacher    (Bopha Pich)    — CHEM101
-#   bio.teacher     (Socheat Sok)   — BIO101
-#   history.teacher (Kunthea Lim)   — HIST101
-#   english.teacher (Sreymom Mao)   — ENG101
-#   french.teacher  (Dara Heng)     — FREN101
-#   cs.teacher      (Makara Chea)   — CS101
-#   pe.teacher      (Vibol Tep)     — PE101
-#   art.teacher     (Leakena Ros)   — ART101
-#   music.teacher   (Chantha Im)    — MUS101
-#
-# Four of the teachers also serve as home-class teachers:
-#   math.teacher    → Class 10A
-#   english.teacher → Class 10B
-#   physics.teacher → Class 10C
-#   history.teacher → Class 10D
-
+# One teacher per subject — each teaches all 5 Grade 11 classes (exactly 5 classes, the max)
 SUBJECT_TEACHER_MAP = {
-    "MATH101": "math.teacher@iams.edu",
-    "PHYS101": "physics.teacher@iams.edu",
-    "CHEM101": "chem.teacher@iams.edu",
-    "BIO101":  "bio.teacher@iams.edu",
-    "HIST101": "history.teacher@iams.edu",
-    "ENG101":  "english.teacher@iams.edu",
-    "FREN101": "french.teacher@iams.edu",
-    "CS101":   "cs.teacher@iams.edu",
-    "PE101":   "pe.teacher@iams.edu",
-    "ART101":  "art.teacher@iams.edu",
-    "MUS101":  "music.teacher@iams.edu",
-    "KH101":   "khmer.teacher@iams.edu",
-    "GEO101":  "history.teacher@iams.edu",   # History teacher covers Geography
+    "MATH101":  "sovann.keo@srmk.edu.kh",
+    "PHYS101":  "piseth.rath@srmk.edu.kh",
+    "CHEM101":  "bopha.pich@srmk.edu.kh",
+    "BIO101":   "socheat.sok@srmk.edu.kh",
+    "ENG101":   "sreymom.mao@srmk.edu.kh",
+    "KH101":    "chanthy.noun@srmk.edu.kh",
+    "MOR101":   "dara.heng@srmk.edu.kh",
+    "HIST101":  "kunthea.lim@srmk.edu.kh",
+    "GEO101":   "vibol.tep@srmk.edu.kh",
+    "ART101":   "leakena.ros@srmk.edu.kh",
+    "ECO101":   "chantha.im@srmk.edu.kh",
+    "PE101":    "makara.chea@srmk.edu.kh",
+    "EARTH101": "chenda.sen@srmk.edu.kh",
 }
 
+# One home teacher per Grade 11 class
 HOME_CLASS_MAP = {
-    "math.teacher@iams.edu":    "Class 10A",
-    "english.teacher@iams.edu": "Class 10B",
-    "physics.teacher@iams.edu": "Class 10C",
-    "history.teacher@iams.edu": "Class 10D",
+    "sovann.keo@srmk.edu.kh":   "Grade 11A",
+    "sreymom.mao@srmk.edu.kh":  "Grade 11B",
+    "piseth.rath@srmk.edu.kh":  "Grade 11C",
+    "chanthy.noun@srmk.edu.kh": "Grade 11D",
+    "kunthea.lim@srmk.edu.kh":  "Grade 11E",
 }
 
 
 def seed(db: Session, classes: dict, subjects: dict, users: dict) -> list:
-    teachers = {
-        email: users.get(email)
-        for email in SUBJECT_TEACHER_MAP.values()
-    }
+    teachers = {email: users.get(email) for email in SUBJECT_TEACHER_MAP.values()}
 
-    # Assign each teacher's home class
+    # Assign home teachers to classes
     for email, class_name in HOME_CLASS_MAP.items():
         teacher = teachers.get(email)
         cls = classes.get(class_name)
@@ -67,7 +46,6 @@ def seed(db: Session, classes: dict, subjects: dict, users: dict) -> list:
     for cls in all_classes:
         if cls is None:
             continue
-
         for subject_code in subject_codes:
             subject = subjects.get(subject_code)
             if not subject:
@@ -81,7 +59,6 @@ def seed(db: Session, classes: dict, subjects: dict, users: dict) -> list:
                 ClassSubject.subject_id == subject.id,
             ).first()
             if existing:
-                # Update teacher assignment if it changed
                 if teacher and existing.teacher_id != teacher.id:
                     existing.teacher_id = teacher.id
                 created.append(existing)
@@ -96,7 +73,7 @@ def seed(db: Session, classes: dict, subjects: dict, users: dict) -> list:
             db.flush()
             created.append(obj)
 
-    # Mark the home-class teachers
+    # Mark home teachers
     for email in HOME_CLASS_MAP:
         teacher = users.get(email)
         if teacher:

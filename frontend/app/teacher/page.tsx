@@ -7,11 +7,13 @@ import {
     BarChart3,
     Loader2,
     Plus,
-    Trophy
+    Trophy,
+    Megaphone
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { classSubjectsApi, assignmentsApi, classesApi, analyticsApi } from '@/lib/api';
+import { classSubjectsApi, assignmentsApi, classesApi, analyticsApi, announcementsApi } from '@/lib/api';
 import { ClassSubject, Assignment, ClassRanking } from '@/types/school.types';
+import type { Announcement } from '@/lib/api/announcements';
 import Link from 'next/link';
 
 export default function TeacherDashboardPage() {
@@ -20,12 +22,17 @@ export default function TeacherDashboardPage() {
     const [classes, setClasses] = useState<ClassSubject[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [ranking, setRanking] = useState<ClassRanking | null>(null);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
     useEffect(() => {
         if (!user) return;
         const fetchData = async () => {
             try {
-                const myClasses = await classSubjectsApi.list({ teacher_id: user.id });
+                const [myClasses, anns] = await Promise.all([
+                    classSubjectsApi.list({ teacher_id: user.id }),
+                    announcementsApi.list({ limit: 3 }),
+                ]);
+                setAnnouncements(anns);
                 setClasses(myClasses);
                 const assignmentArrays = await Promise.all(
                     myClasses.map(cs => assignmentsApi.list({ class_subject_id: cs.id }))
@@ -158,6 +165,29 @@ export default function TeacherDashboardPage() {
 
                 {/* Quick Actions / Summary */}
                 <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                                <Megaphone size={18} className="text-orange-400" /> Announcements
+                            </h3>
+                            <Link href="/teacher/notifications" className="text-xs text-slate-400 hover:text-orange-500 font-medium transition-colors">
+                                View all →
+                            </Link>
+                        </div>
+                        {announcements.length === 0 ? (
+                            <p className="text-slate-400 text-sm text-center py-2">No announcements.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {announcements.map(a => (
+                                    <div key={a.id} className={`p-3 rounded-xl border text-sm ${a.is_pinned ? 'border-orange-200 bg-orange-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
+                                        <p className="font-bold text-slate-800">{a.title}</p>
+                                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{a.body}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     <div className="bg-slate-900 p-6 rounded-2xl text-white shadow-lg">
                         <h3 className="font-bold mb-4 flex items-center gap-2">
                             <BarChart3 size={20} className="text-amber-400" /> Quick Summary

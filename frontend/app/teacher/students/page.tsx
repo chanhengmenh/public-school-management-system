@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { classesApi, analyticsApi, client } from '@/lib/api';
+import { behaviorLogsApi, BehaviorLog } from '@/lib/api/behavior-logs';
 import { ClassRanking, RankingEntry, Class } from '@/types/school.types';
 import { User } from '@/types/user.types';
 import {
@@ -14,7 +15,104 @@ import {
   Loader2,
   Home,
   AlertCircle,
+  Activity,
+  X,
 } from 'lucide-react';
+
+const EVENT_LABELS: Record<string, { label: string; color: string }> = {
+  keypress:    { label: 'Keypress',    color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  paste:       { label: 'Paste',       color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  focus_gain:  { label: 'Focus In',    color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  focus_loss:  { label: 'Focus Out',   color: 'bg-red-50 text-red-700 border-red-200' },
+  copy:        { label: 'Copy',        color: 'bg-purple-50 text-purple-700 border-purple-200' },
+  cut:         { label: 'Cut',         color: 'bg-orange-50 text-orange-700 border-orange-200' },
+};
+
+function BehaviorLogModal({ student, onClose }: { student: User; onClose: () => void }) {
+  const [logs, setLogs] = useState<BehaviorLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    behaviorLogsApi.list({ student_id: student.id })
+      .then(setLogs)
+      .catch(() => setLogs([]))
+      .finally(() => setLoading(false));
+  }, [student.id]);
+
+  const counts = logs.reduce<Record<string, number>>((acc, l) => {
+    acc[l.event_type] = (acc[l.event_type] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl border border-slate-200 flex flex-col max-h-[80vh]">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-slate-800">Activity Logs — {student.full_name}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{logs.length} total events</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 overflow-y-auto flex-1">
+          {loading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div>
+          ) : logs.length === 0 ? (
+            <p className="text-slate-400 text-sm text-center py-8">No behavior logs for this student.</p>
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {Object.entries(counts).map(([type, count]) => {
+                  const style = EVENT_LABELS[type] ?? { label: type, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                  return (
+                    <span key={type} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${style.color}`}>
+                      {style.label}: {count}
+                    </span>
+                  );
+                })}
+              </div>
+              {/* Log table */}
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      <th className="text-left px-4 py-2 font-semibold text-slate-500">Event</th>
+                      <th className="text-left px-4 py-2 font-semibold text-slate-500">Sub #</th>
+                      <th className="text-left px-4 py-2 font-semibold text-slate-500">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {logs.slice(0, 100).map(log => {
+                      const style = EVENT_LABELS[log.event_type] ?? { label: log.event_type, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${style.color}`}>
+                              {style.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-slate-500">#{log.submission_id}</td>
+                          <td className="px-4 py-2 text-slate-400">
+                            {new Date(log.client_ts).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {logs.length > 100 && <p className="text-xs text-slate-400 mt-2 text-center">Showing first 100 of {logs.length} events</p>}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomeTeacherStudentsPage() {
   const { user } = useAuth();
@@ -25,6 +123,7 @@ export default function HomeTeacherStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [noClassAssigned, setNoClassAssigned] = useState(false);
+  const [logsStudent, setLogsStudent] = useState<User | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -219,6 +318,9 @@ export default function HomeTeacherStudentsPage() {
                   <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     Total Score
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">
+                    Activity
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -285,6 +387,14 @@ export default function HomeTeacherStudentsPage() {
                           <span className="text-slate-300 text-sm">—</span>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right hidden lg:table-cell">
+                        <button
+                          onClick={() => setLogsStudent(student)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 hover:text-orange-600 hover:border-orange-200 transition-colors"
+                        >
+                          <Activity className="w-3.5 h-3.5" /> Logs
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -293,6 +403,10 @@ export default function HomeTeacherStudentsPage() {
           </div>
         )}
       </div>
+
+      {logsStudent && (
+        <BehaviorLogModal student={logsStudent} onClose={() => setLogsStudent(null)} />
+      )}
     </div>
   );
 }

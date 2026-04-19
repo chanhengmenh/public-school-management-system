@@ -12,8 +12,10 @@ import {
     Loader2
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { analyticsApi, enrollmentsApi, assignmentsApi, classSubjectsApi } from '@/lib/api';
+import { analyticsApi, enrollmentsApi, assignmentsApi, classSubjectsApi, announcementsApi } from '@/lib/api';
 import { StudentScoreTrend, Enrollment, Assignment, ClassSubject } from '@/types/school.types';
+import type { Announcement } from '@/lib/api/announcements';
+import Link from 'next/link';
 
 export default function StudentDashboardPage() {
     const { user } = useAuth();
@@ -22,6 +24,7 @@ export default function StudentDashboardPage() {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
     useEffect(() => {
         if (!user) return;
@@ -29,10 +32,12 @@ export default function StudentDashboardPage() {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [trend, enrolled] = await Promise.all([
+                const [trend, enrolled, anns] = await Promise.all([
                     analyticsApi.getStudentScoreTrend(user.id),
                     enrollmentsApi.list({ student_id: user.id }),
+                    announcementsApi.list({ limit: 3 }),
                 ]);
+                setAnnouncements(anns);
 
                 setScoreTrend(trend);
                 setEnrollments(enrolled);
@@ -185,16 +190,30 @@ export default function StudentDashboardPage() {
                         </div>
                     </div>
 
-                    <div className="bg-slate-900 rounded-2xl p-6 mt-6 flex gap-4 items-start shadow-md">
-                        <div className="shrink-0 mt-0.5">
-                            <Megaphone className="w-5 h-5 text-orange-400" />
+                    <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 mt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-serif font-bold text-slate-900 flex items-center gap-2">
+                                <Megaphone className="w-5 h-5 text-orange-400" /> Announcements
+                            </h2>
+                            <Link href="/student/notifications" className="text-xs text-slate-400 hover:text-orange-500 font-medium transition-colors">
+                                View all →
+                            </Link>
                         </div>
-                        <div className="flex flex-col">
-                            <h3 className="text-base font-serif font-bold text-white leading-tight mb-1.5">Academic Portal</h3>
-                            <p className="text-sm text-slate-300">
-                                Welcome to your student dashboard. Here you can track your subjects, assignments, and academic performance in real-time.
-                            </p>
-                        </div>
+                        {announcements.length === 0 ? (
+                            <p className="text-slate-400 text-sm py-4 text-center">No announcements yet.</p>
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {announcements.map(a => (
+                                    <div key={a.id} className={`p-4 rounded-xl border ${a.is_pinned ? 'border-orange-200 bg-orange-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p className="font-bold text-slate-800 text-sm">{a.title}</p>
+                                            {a.is_pinned && <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0">Pinned</span>}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{a.body}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -72,6 +72,7 @@ export interface Class {
   name: string;
   academic_year: string;
   home_teacher_id: number | null;
+  home_teacher_name: string | null;
 }
 
 export interface Subject {

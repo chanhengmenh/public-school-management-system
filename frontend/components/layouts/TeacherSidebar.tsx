@@ -99,7 +99,7 @@ export default function TeacherSidebar() {
                         </div>
                         <div className="ml-3 flex flex-col min-w-0 overflow-hidden">
                             <span className="text-white text-xl font-bold font-serif tracking-tight whitespace-nowrap overflow-hidden">
-                                EduSchool
+                                PSMS
                             </span>
                             <span className="text-[10px] text-blue-400 tracking-wider font-sans uppercase">
                                 TEACHER PORTAL

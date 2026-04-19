@@ -113,12 +113,30 @@ def student_score_trend(student_id: int, db: Session = Depends(get_db),
     )
 
 
-@router.get("/class/{class_id}/averages", response_model=ClassAnalytics,
-            dependencies=[Depends(require_roles(UserRole.teacher, UserRole.admin))])
-def class_averages(class_id: int, db: Session = Depends(get_db)):
+@router.get("/class/{class_id}/averages", response_model=ClassAnalytics)
+def class_averages(class_id: int, db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
     from app.models.class_ import Class
     from app.models.subject import Subject
     class_obj = db.query(Class).filter(Class.id == class_id).first()
+
+    # Access control: admin=all, teacher=must teach in this class, student=must be enrolled
+    if current_user.role == UserRole.teacher:
+        teaches_here = db.query(ClassSubject).filter(
+            ClassSubject.class_id == class_id,
+            ClassSubject.teacher_id == current_user.id,
+        ).first()
+        if not teaches_here:
+            raise ForbiddenError("You do not teach any subject in this class")
+    elif current_user.role == UserRole.student:
+        enrolled = db.query(Enrollment).filter(
+            Enrollment.student_id == current_user.id,
+            Enrollment.class_id == class_id,
+        ).first()
+        if not enrolled:
+            raise ForbiddenError("You are not enrolled in this class")
+    elif current_user.role != UserRole.admin:
+        raise ForbiddenError("Access denied")
     rows = (
         db.query(
             Subject.id,
@@ -163,11 +181,22 @@ def class_averages(class_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/home-teacher/{class_id}/ranking", response_model=ClassRanking,
-            dependencies=[Depends(require_home_teacher())])
-def class_ranking(class_id: int, db: Session = Depends(get_db)):
+@router.get("/home-teacher/{class_id}/ranking", response_model=ClassRanking)
+def class_ranking(class_id: int, db: Session = Depends(get_db),
+                  current_user: User = Depends(get_current_user)):
     from app.models.class_ import Class
     class_obj = db.query(Class).filter(Class.id == class_id).first()
+
+    # Only the home teacher of THIS class (or admin) may access the ranking
+    if current_user.role == UserRole.admin:
+        pass
+    elif (current_user.role == UserRole.teacher
+          and current_user.is_home_teacher
+          and class_obj
+          and class_obj.home_teacher_id == current_user.id):
+        pass
+    else:
+        raise ForbiddenError("Only the home teacher of this class can view its ranking")
     rows = (
         db.query(
             User.id,

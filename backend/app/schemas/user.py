@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from app.models.user import UserRole
+from app.models.user import UserRole, UserGender
 from typing import Optional
 
 
@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     full_name: str
     password: str
     role: UserRole
+    gender: Optional[UserGender] = None
     is_home_teacher: bool = False
     is_class_monitor: bool = False
 
@@ -17,6 +18,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
+    gender: Optional[UserGender] = None
     is_active: Optional[bool] = None
     is_home_teacher: Optional[bool] = None
     is_class_monitor: Optional[bool] = None
@@ -35,6 +37,7 @@ class UserRead(BaseModel):
     email: str
     full_name: str
     role: UserRole
+    gender: Optional[UserGender] = None
     is_active: bool
     is_home_teacher: bool
     is_class_monitor: bool

@@ -18,7 +18,11 @@ def list_subjects(db: Session = Depends(get_db), _: User = Depends(get_current_u
 @router.post("/", response_model=SubjectRead,
              dependencies=[Depends(require_roles(UserRole.admin))])
 def create_subject(data: SubjectCreate, db: Session = Depends(get_db)):
-    obj = Subject(**data.model_dump())
+    payload = data.model_dump()
+    if not payload.get("code"):
+        # Auto-generate a slug from the name (e.g. "Earth Science" → "EARTH_SCIENCE")
+        payload["code"] = data.name.upper().replace(" ", "_").replace("&", "AND")[:20]
+    obj = Subject(**payload)
     db.add(obj)
     db.commit()
     db.refresh(obj)

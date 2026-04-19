@@ -1,33 +1,73 @@
-# Student Management System - GEMINI Mandates
+# Public School Management System (PSMS) - GEMINI Mandates
 
-This document contains foundational mandates and architectural standards for the Student Management System. These instructions take absolute precedence over general defaults.
+This document contains foundational mandates, architectural standards, and deployment protocols for the Public School Management System (PSMS), built for Sereymongkul High School (SRMK). These instructions take absolute precedence over general defaults.
 
 ## 🛠️ Core Tech Stack
 - **Backend:** FastAPI (Python 3.10+), SQLAlchemy 2.0 (Sync), Alembic (Migrations), Pydantic v2.
-- **Frontend:** Next.js 14+ (App Router), TypeScript, Tailwind CSS, React Context for Auth.
-- **Database:** PostgreSQL.
+- **Frontend:** Next.js 14+ (App Router), TypeScript, Tailwind CSS, shadcn/ui (Radix UI).
+- **Database:** PostgreSQL (Supabase in production, SQLite for tests).
+- **Storage:** Pluggable Backend (Local or Supabase Storage).
 - **Authentication:** JWT-based RBAC (Admin, Teacher, Student).
 
 ## 🏗️ Architectural Standards
+
 ### Backend (`/backend`)
-- **Structure:** Modular layout (`app/models`, `app/routers`, `app/schemas`, `app/services`).
+- **Pattern:** Layered structure: **Router → Service → Model**.
 - **Models:** Use SQLAlchemy 2.0 `Mapped` and `mapped_column` syntax.
 - **Schemas:** Use Pydantic v2 for request/response validation.
 - **Migrations:** Always generate an Alembic migration for model changes: `alembic revision --autogenerate -m "description"`.
+- **Storage:** Abstract `StorageBackend` with `local.py` and `supabase.py` implementations.
 - **Naming:** `snake_case` for all Python code.
 
 ### Frontend (`/frontend`)
-- **Structure:** Next.js App Router (`src/app`). Components in `src/components`.
-- **State:** Use `AuthContext` for user session management.
-- **Styling:** Tailwind CSS for all UI. Prefer Radix UI or Shadcn/UI patterns if present.
-- **API:** Centralize API calls in `src/lib/api/`.
+- **Structure:** Next.js App Router (`app/`). Components in `components/`.
+- **State:** `AuthProvider` manages session (`user`, `isLoading`, `login`, `logout`).
+- **Auth Flow:** Short-lived JWT access token (memory only) + long-lived refresh token (`localStorage`).
+- **Styling:** Tailwind CSS + shadcn/ui. Adhere to SRMK branding.
+- **API:** Centralized Axios client in `lib/api/client.ts` with auto-refresh interceptors.
 - **Naming:** `PascalCase` for components, `camelCase` for variables/functions.
 
+## 📊 Key Data Model Relationships
+```
+User (roles: admin, teacher, student)
+  ↕ Enrollment → Class
+  ↕ ClassSubject (Class × Subject × teacher User)
+    ↕ Assignment → AssignmentSubmission (by student User)
+    ↕ Grade (scored by teacher User)
+  ↕ Attendance (marked by class_monitor User)
+  ↕ BehaviorLog (on student User, by home_teacher)
+```
+*Note: `is_home_teacher` and `is_class_monitor` are flags, not separate roles.*
+
 ## 🔐 Security & Permissions
-- **RBAC:** Strictly enforce role-based access in both backend dependencies (`dependencies.py`) and frontend middleware/layout guards.
-- **Secrets:** NEVER hardcode credentials. Use `.env` files and `backend/app/config.py`.
+- **RBAC:** Strictly enforce roles in backend `dependencies.py` and frontend route guards.
+- **IDOR Protection:** Ownership checks mandatory for `/class-subjects/{id}`, `/analytics/`, etc.
+- **Secrets:** NEVER hardcode credentials. Use `.env` and `app/config.py`.
 
 ## 🧪 Testing & Validation
-- **Backend:** Use `pytest` for unit and integration tests in `backend/tests/`.
-- **Frontend:** Ensure all new components are typed and handle loading/error states.
-- **Mandate:** Before finalizing a backend change, verify it doesn't break existing RBAC logic in `test_rbac.py`.
+- **Backend:** `pytest` in `backend/tests/`. Verify `test_rbac.py` before any PR.
+- **Frontend:** Ensure all components handle loading/error states and are fully typed.
+
+## 🚀 Deployment (Production Stack)
+- **Backend:** Railway (FastAPI + Alembic).
+- **Frontend:** Vercel (Next.js).
+- **Database/Storage:** Supabase (PostgreSQL + S3-compatible Storage).
+- **Domain:** SRMK Educational domain (`@srmk.edu.kh`).
+
+## 📈 Current Project Status (Tiered Progress)
+- **Completed:** Security IDOR fixes, Admin Password Resets, Announcements, Audit Logs, Bulk CSV Import, SRMK Rebranding, Timetable Wiring.
+- **Immediate Priorities:** 
+  1. Verify Quiz feature end-to-end.
+  2. Implement Academic Year transition workflow.
+  3. Deploy to Railway/Vercel/Supabase live.
+
+## 💻 Essential Commands
+### Backend
+- `uvicorn app.main:app --reload` (Dev Server)
+- `alembic upgrade head` (Migrations)
+- `pytest` (Tests)
+
+### Frontend
+- `npm run dev` (Dev Server)
+- `npm run build` (Production Build)
+- `npm run lint` (Linting)

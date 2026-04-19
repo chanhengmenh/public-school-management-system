@@ -5,13 +5,13 @@ import { User } from "../../types/user.types";
 import { usersApi, authApi } from "../../lib/api";
 import { LoginRequest } from "../../types/auth.types";
 import { useRouter } from "next/navigation";
-import { setCookie } from "../../lib/utils";
+import { setCookie, deleteCookie } from "../../lib/utils";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (data: LoginRequest) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -77,16 +77,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = async () => {
-    setLoading(true);
-    try {
-      await authApi.logout();
-    } finally {
-      setUser(null);
-      setLoading(false);
-      router.push("/login");
-      router.refresh();
+  const logout = () => {
+    // JWT is stateless — just wipe local tokens, no server call needed.
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      deleteCookie("access_token");
+      deleteCookie("refresh_token");
+      deleteCookie("user_role");
     }
+    setUser(null);
+    router.push("/login");
+    router.refresh();
   };
 
   return (

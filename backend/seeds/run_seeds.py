@@ -1,6 +1,9 @@
 """
 Run all seeds to populate the database with sample data.
 Usage: cd backend && python -m seeds.run_seeds
+
+Pass --wipe to delete all existing data before seeding:
+    python -m seeds.run_seeds --wipe
 """
 import sys
 import os
@@ -14,9 +17,27 @@ from seeds import (
 )
 
 
-def run():
+def wipe_all(db):
+    """Truncate all tables in one shot using PostgreSQL CASCADE."""
+    from sqlalchemy import text
+    tables = [
+        "class_schedules", "notifications", "behavior_logs", "attendance",
+        "submission_files", "grades", "grade_categories", "assignment_submissions",
+        "assignments", "class_subjects", "enrollments", "users", "classes", "subjects",
+    ]
+    table_list = ", ".join(tables)
+    db.execute(text(f"TRUNCATE {table_list} RESTART IDENTITY CASCADE"))
+    db.commit()
+    print(f"  done: truncated {len(tables)} tables\n")
+
+
+def run(wipe: bool = False):
     db = SessionLocal()
     try:
+        if wipe:
+            print("Wiping all existing data...")
+            wipe_all(db)
+
         print("Seeding users...")
         seeded_users = users.seed(db)
 
@@ -44,23 +65,28 @@ def run():
         print("Seeding attendance (10 school days)...")
         attendance.seed(db, seeded_classes, seeded_users)
 
-        print("Seeding schedules (Class 10A–10D timetables)...")
+        print("Seeding schedules (Grade 11A–11E, Mon–Sat)...")
         schedules.seed(db, seeded_classes, seeded_subjects, seeded_cs)
 
         print("Seeding notifications (student001–005)...")
         notifications.seed(db, seeded_users)
 
         print("\nAll seeds completed successfully!")
-        print("\nSample credentials (password: password123)")
-        print("  Admin:              admin@iams.edu")
-        print("  Math teacher/Home:  math.teacher@iams.edu    (home class: Class 10A)")
-        print("  English teacher:    english.teacher@iams.edu (home class: Class 10B)")
-        print("  Physics teacher:    physics.teacher@iams.edu (home class: Class 10C)")
-        print("  History teacher:    history.teacher@iams.edu (home class: Class 10D)")
-        print("  CS teacher:         cs.teacher@iams.edu")
-        print("  Khmer teacher:      khmer.teacher@iams.edu")
-        print("  Student:            student001@iams.edu (Class 10A, class monitor, has notifications)")
-        print("  Student:            student002@iams.edu (Class 10A, has notifications)")
+        print("\nSample credentials (password: password123)  — domain: @srmk.edu.kh")
+        print("  Admin:                      admin@srmk.edu.kh")
+        print("  Math teacher (home 11A):    sovann.keo@srmk.edu.kh")
+        print("  English teacher (home 11B): sreymom.mao@srmk.edu.kh")
+        print("  Physics teacher (home 11C): piseth.rath@srmk.edu.kh")
+        print("  Khmer teacher (home 11D):   chanthy.noun@srmk.edu.kh")
+        print("  History teacher (home 11E): kunthea.lim@srmk.edu.kh")
+        print("  Other teachers: bopha.pich / socheat.sok / dara.heng / vibol.tep")
+        print("                  leakena.ros / chantha.im / makara.chea / chenda.sen @srmk.edu.kh")
+        print("  Students: 2025{num:03d}{lastname}@srmk.edu.kh  (e.g. 2025001lim@srmk.edu.kh)")
+        print("    Grade 11A: 2025001lim – 2025030khant  (2025001lim = class monitor)")
+        print("    Grade 11B: 2025031lim – 2025060khant  (2025031lim = class monitor)")
+        print("    Grade 11C: 2025061lim – 2025090khant  (2025061lim = class monitor)")
+        print("    Grade 11D: 2025091lim – 2025120khant  (2025091lim = class monitor)")
+        print("    Grade 11E: 2025121lim – 2025150khant  (2025121lim = class monitor)")
     except Exception as e:
         db.rollback()
         print(f"\nSeed error: {e}")
@@ -70,4 +96,5 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    wipe = "--wipe" in sys.argv
+    run(wipe=wipe)

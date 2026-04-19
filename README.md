@@ -1,6 +1,6 @@
-# IAMS — Intelligent Academic Management System
+# Public School Management System (PSMS)
 
-A full-stack, role-based academic management platform with a dark glassmorphism UI, Canvas-style class navigation, behavior analytics, and cross-subject student ranking.
+A full-stack, role-based academic management platform built for **Sereymongkul High School (SRMK)**, featuring a dark glassmorphism UI, Canvas-style class navigation, behavior analytics, and cross-subject student ranking.
 
 ---
 
@@ -148,7 +148,7 @@ docker compose up -d
 | Service    | URL                                                  |
 | ---------- | ---------------------------------------------------- |
 | PostgreSQL | `localhost:5432`                                   |
-| PgAdmin    | `http://localhost:5050` (admin@iams.local / admin) |
+| PgAdmin    | `http://localhost:5050` (admin@srmk.edu.kh / admin) |
 
 ---
 
@@ -188,14 +188,28 @@ npm run dev   # http://localhost:3000
 ## Sample Credentials
 
 > **Default Password for all accounts:** `password123`
+>
+> **Email domain:** `@srmk.edu.kh`
+>
+> **Student format:** `{year}{num:03d}{lastname}@srmk.edu.kh` — e.g. `2025001lim@srmk.edu.kh`
+>
+> **Teacher format:** `firstname.lastname@srmk.edu.kh` — e.g. `sovann.keo@srmk.edu.kh`
 
-| Role                        | Email                        | Notes                               |
-| --------------------------- | ---------------------------- | ----------------------------------- |
-| **Admin**             | `admin@iams.edu`           | Full system access                  |
-| **Math Teacher**      | `math.teacher@iams.edu`    | Standard Teacher                    |
-| **English Teacher**   | `english.teacher@iams.edu` | **Home Teacher** of Class 10B |
-| **Student (Monitor)** | `student001@iams.edu`      | Class 10A,**Class Monitor**   |
-| **Student**           | `student002@iams.edu`      | Standard Student                    |
+| Role | Email | Password | Notes |
+| ---- | ----- | -------- | ----- |
+| **Admin** | `admin@srmk.edu.kh` | `password123` | Full system access |
+| **Math Teacher** | `sovann.keo@srmk.edu.kh` | `password123` | Home Teacher of Grade 11A |
+| **English Teacher** | `sreymom.mao@srmk.edu.kh` | `password123` | Home Teacher of Grade 11B |
+| **Physics Teacher** | `piseth.rath@srmk.edu.kh` | `password123` | Home Teacher of Grade 11C |
+| **Khmer Teacher** | `chanthy.noun@srmk.edu.kh` | `password123` | Home Teacher of Grade 11D |
+| **History Teacher** | `kunthea.lim@srmk.edu.kh` | `password123` | Home Teacher of Grade 11E |
+| **Chemistry Teacher** | `bopha.pich@srmk.edu.kh` | `password123` | Standard Teacher |
+| **Student (Monitor)** | `2025001lim@srmk.edu.kh` | `password123` | Grade 11A — Class Monitor (Sophea Lim) |
+| **Student** | `2025002mao@srmk.edu.kh` | `password123` | Grade 11A — Standard Student (Piseth Mao) |
+| **Student (Monitor)** | `2025031bun@srmk.edu.kh` | `password123` | Grade 11B — Class Monitor (Sophea Bun) |
+| **Student (Monitor)** | `2025061khem@srmk.edu.kh` | `password123` | Grade 11C — Class Monitor (Sophea Khem) |
+| **Student (Monitor)** | `2025091sen@srmk.edu.kh` | `password123` | Grade 11D — Class Monitor (Sophea Sen) |
+| **Student (Monitor)** | `2025121dara@srmk.edu.kh` | `password123` | Grade 11E — Class Monitor (Sophea Dara) |
 
 ---
 

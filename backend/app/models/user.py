@@ -11,6 +11,12 @@ class UserRole(str, enum.Enum):
     student = "student"
 
 
+class UserGender(str, enum.Enum):
+    male = "male"
+    female = "female"
+    other = "other"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -19,6 +25,7 @@ class User(Base):
     full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
+    gender = Column(Enum(UserGender), nullable=True)
     is_active = Column(Boolean, default=True)
     is_home_teacher = Column(Boolean, nullable=False, default=False, server_default='false')
     is_class_monitor = Column(Boolean, nullable=False, default=False, server_default='false')

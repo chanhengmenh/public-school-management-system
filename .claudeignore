@@ -1,0 +1,7 @@
+node_modules/
+dist/
+build/
+*.log
+.git/
+# Exclude large binary/asset folders
+public/assets/

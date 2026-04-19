@@ -75,7 +75,7 @@ export default function StudentClassesPage() {
                                     {cls.subject_name}
                                 </h2>
                                 <p className="text-sm text-slate-500 mt-1 mb-6">
-                                    {cls.teacher_name} · {cls.subject_code}
+                                    {cls.teacher_name}
                                 </p>
 
                                 <div className="mt-auto border-t border-slate-100 pt-5 flex justify-between items-center">

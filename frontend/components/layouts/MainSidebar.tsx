@@ -15,6 +15,8 @@ import {
     ClipboardCheck,
     Users,
     BarChart3,
+    CalendarDays,
+    ShieldCheck,
     LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
@@ -35,18 +37,23 @@ function getNavLinks(role: string | undefined, isClassMonitor: boolean, isHomeTe
         if (isHomeTeacher) {
             main.push({ name: 'Students', href: '/teacher/students', icon: Users });
         }
-        return { main, account: [] };
+        return {
+            main,
+            account: [{ name: 'Settings', href: '/teacher/settings', icon: Settings }],
+        };
     }
 
     if (role === 'admin') {
         return {
             main: [
-                { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-                { name: 'Users', href: '/admin/users', icon: Users },
-                { name: 'Academic', href: '/admin/academic', icon: BookOpen },
-                { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+                { name: 'Dashboard',  href: '/admin',           icon: LayoutDashboard },
+                { name: 'Users',      href: '/admin/users',     icon: Users },
+                { name: 'Academic',   href: '/admin/academic',  icon: BookOpen },
+                { name: 'Timetable',  href: '/admin/timetable', icon: CalendarDays },
+                { name: 'Analytics',  href: '/admin/analytics',  icon: BarChart3 },
+                { name: 'Audit Logs', href: '/admin/audit-logs', icon: ShieldCheck },
             ],
-            account: [],
+            account: [{ name: 'Settings', href: '/admin/settings', icon: Settings }],
         };
     }
 
@@ -141,7 +148,7 @@ export default function MainSidebar({ role }: MainSidebarProps) {
                             <GraduationCap className="text-orange-500 h-6 w-6" />
                         </div>
                         <span className="text-white text-xl font-bold font-serif tracking-tight whitespace-nowrap overflow-hidden ml-3">
-                            EduSchool
+                            PSMS
                         </span>
                     </div>
                 )}

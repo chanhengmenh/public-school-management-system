@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-IAMS (Intelligent Academic Management System) — a role-based academic management platform. The repo has two independently runnable services:
+PSMS (Public School Management System) — a role-based academic management platform built for Sereymongkul High School (SRMK). The repo has two independently runnable services:
 
 - `backend/` — FastAPI + SQLAlchemy + PostgreSQL + Alembic
 - `frontend/` — Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui (Radix UI primitives)
@@ -115,6 +115,7 @@ User (roles: admin/teacher/home_teacher/student/class_monitor)
 ### Environment Variables
 
 Backend (`backend/.env`):
+
 ```
 DATABASE_URL=postgresql://iams_user:iams_pass@localhost:5432/iams_db
 JWT_SECRET_KEY=<256-bit secret>
@@ -123,6 +124,7 @@ ALLOWED_ORIGINS=http://localhost:3000
 ```
 
 Frontend (`frontend/.env.local`):
+
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
@@ -139,30 +141,32 @@ Chosen stack: **Railway** (backend) + **Vercel** (frontend) + **Supabase** (Post
 
 ### Services
 
-| Service | Purpose | Cost |
-|---------|---------|------|
-| Railway | FastAPI backend | Free tier / ~$5/mo |
-| Vercel | Next.js frontend | Free |
+| Service  | Purpose                   | Cost                                                             |
+| -------- | ------------------------- | ---------------------------------------------------------------- |
+| Railway  | FastAPI backend           | Free tier / ~$5/mo                                               |
+| Vercel   | Next.js frontend          | Free                                                             |
 | Supabase | PostgreSQL + file storage | Free tier (upgrade to $25/mo for production to prevent DB pause) |
 
 ### Config Files
 
-| File | Purpose |
-|------|---------|
-| `backend/railway.toml` | Railway build + start command |
-| `backend/Procfile` | Fallback process definition |
+| File                        | Purpose                                                   |
+| --------------------------- | --------------------------------------------------------- |
+| `backend/railway.toml`    | Railway build + start command                             |
+| `backend/Procfile`        | Fallback process definition                               |
 | `backend/.env.production` | Template for Railway env vars (do NOT commit real values) |
-| `frontend/vercel.json` | Vercel build config (region: Singapore `sin1`) |
+| `frontend/vercel.json`    | Vercel build config (region: Singapore `sin1`)          |
 
 ### Step-by-Step Deploy
 
 #### 1. Supabase (Database + Storage)
+
 1. Create project at [supabase.com](https://supabase.com)
 2. Go to **Settings → Database → Connection string** (use **Transaction mode** URI) → set as `DATABASE_URL` in Railway
 3. Go to **Settings → API** → copy `service_role` key → set as `SUPABASE_SERVICE_ROLE_KEY`
 4. Go to **Storage** → create bucket named `iams-files` (set to private)
 
 #### 2. Railway (Backend)
+
 1. Create project at [railway.app](https://railway.app)
 2. **New Service → GitHub Repo** → select this repo → set **Root Directory** to `backend/`
 3. Go to **Variables** tab → add all vars from `backend/.env.production` with real values:
@@ -181,6 +185,7 @@ Chosen stack: **Railway** (backend) + **Vercel** (frontend) + **Supabase** (Post
 5. Copy the generated Railway domain (e.g. `https://iams-backend.up.railway.app`)
 
 #### 3. Vercel (Frontend)
+
 1. Go to [vercel.com](https://vercel.com) → **New Project → Import GitHub Repo**
 2. Set **Root Directory** to `frontend/`
 3. Add environment variable:
@@ -190,15 +195,27 @@ Chosen stack: **Railway** (backend) + **Vercel** (frontend) + **Supabase** (Post
 4. Deploy — Vercel auto-detects Next.js
 
 #### 4. Final Wiring
+
 - Go back to Railway → update `ALLOWED_ORIGINS` to your Vercel URL
 - Redeploy Railway service
 
 ### Generate a Secure JWT Secret
+
 ```bash
 openssl rand -hex 32
 ```
 
 ### Stability Notes
+
 - Vercel: 99.99% uptime, no concerns
 - Railway: stable for hundreds of concurrent users; free tier has $5/mo credit cap
 - Supabase free tier: **pauses after 7 days of inactivity** — upgrade to paid for daily school use
+
+
+
+# Project Context & Token Rules
+
+- **Stack**: [e.g., Python/FastAPI/Next.js]
+- **Style**: Use concise code. Do not explain changes unless asked.
+- **Budgeting**: Use `grep` or `find` to locate code instead of reading entire directories.
+- **Verification**: Run `npm test` [or your test command] after changes.

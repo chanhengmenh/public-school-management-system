@@ -14,7 +14,6 @@ export default function SettingsPage() {
     // Profile editing
     const [editing, setEditing] = useState(false);
     const [fullName, setFullName] = useState(user?.full_name ?? '');
-    const [email, setEmail] = useState(user?.email ?? '');
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -28,7 +27,6 @@ export default function SettingsPage() {
 
     const startEditing = () => {
         setFullName(user?.full_name ?? '');
-        setEmail(user?.email ?? '');
         setEditing(true);
         setSaveSuccess(false);
         setSaveError(null);
@@ -44,9 +42,8 @@ export default function SettingsPage() {
         setSaveError(null);
         setSaveSuccess(false);
         try {
-            const updates: { full_name?: string; email?: string } = {};
+            const updates: { full_name?: string } = {};
             if (fullName !== user?.full_name) updates.full_name = fullName;
-            if (email !== user?.email) updates.email = email;
             if (Object.keys(updates).length === 0) {
                 setEditing(false);
                 return;
@@ -149,19 +146,13 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-700">Email Address</label>
-                                {editing ? (
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={e => setEmail(e.target.value)}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                                    />
-                                ) : (
-                                    <div className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm">
-                                        {user?.email ?? '\u2014'}
-                                    </div>
-                                )}
+                                <label className="text-sm font-medium text-slate-700">
+                                    Email Address
+                                    <span className="ml-2 text-xs font-normal text-slate-400">(managed by admin)</span>
+                                </label>
+                                <div className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-sm select-all">
+                                    {user?.email ?? '\u2014'}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-700">Account Status</label>

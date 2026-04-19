@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.dependencies import get_db, get_current_user
 from app.models.user import UserRole, User
 from app.schemas.class_ import ClassCreate, ClassRead, ClassUpdate
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 
 @router.get("/", response_model=list[ClassRead])
 def list_classes(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(Class).all()
+    return db.query(Class).options(joinedload(Class.home_teacher)).all()
 
 
 @router.post("/", response_model=ClassRead,
@@ -29,7 +29,12 @@ def create_class(data: ClassCreate, db: Session = Depends(get_db)):
 
 @router.get("/{class_id}", response_model=ClassRead)
 def get_class(class_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    obj = db.query(Class).filter(Class.id == class_id).first()
+    obj = (
+        db.query(Class)
+        .options(joinedload(Class.home_teacher))
+        .filter(Class.id == class_id)
+        .first()
+    )
     if not obj:
         raise NotFoundError(f"Class {class_id} not found")
     return obj

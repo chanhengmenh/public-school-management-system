@@ -14,3 +14,6 @@ export * from "./grades";
 export * from "./files";
 export * from "./schedules";
 export * from "./notifications";
+export * from "./announcements";
+export * from "./audit-logs";
+export * from "./behavior-logs";

@@ -18,7 +18,6 @@ class ClassSubjectRead(BaseModel):
     subject_id: int
     teacher_id: Optional[int] = None
     subject_name: str = ""
-    subject_code: str = ""
     class_name: str = ""
     class_academic_year: str = ""
     teacher_name: str = ""
@@ -33,7 +32,6 @@ class ClassSubjectRead(BaseModel):
                 "subject_id": data.subject_id,
                 "teacher_id": data.teacher_id,
                 "subject_name": data.subject.name,
-                "subject_code": data.subject.code if data.subject.code else "",
                 "class_name": data.class_.name if data.class_ is not None else "",
                 "class_academic_year": data.class_.academic_year if data.class_ is not None else "",
                 "teacher_name": data.teacher.full_name if data.teacher is not None else "",

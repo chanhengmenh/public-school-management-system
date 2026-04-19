@@ -13,10 +13,16 @@ import {
   CheckCircle2,
   Edit2,
   AlertTriangle,
-  X
+  X,
+  User,
+  Pencil,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { usersApi } from "@/lib/api";
 
-type TabProps = "General" | "Calendar" | "Bell" | "Security";
+type TabProps = "Account" | "General" | "Calendar" | "Bell" | "Security";
 
 interface Semester {
   id: string;
@@ -35,10 +41,72 @@ interface Period {
 }
 
 export default function GlobalSettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabProps>("General");
+  const { user, refreshUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabProps>("Account");
   const [showToast, setShowToast] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // ── My Account state ────────────────────────────────────────
+  const [acctEditing,   setAcctEditing]   = useState(false);
+  const [draftName,     setDraftName]     = useState('');
+  const [draftEmail,    setDraftEmail]    = useState('');
+  const [acctSaving,    setAcctSaving]    = useState(false);
+  const [acctSuccess,   setAcctSuccess]   = useState(false);
+  const [acctError,     setAcctError]     = useState<string | null>(null);
+
+  const [newPassword,     setNewPassword]     = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving,        setPwSaving]        = useState(false);
+  const [pwSuccess,       setPwSuccess]       = useState(false);
+  const [pwError,         setPwError]         = useState<string | null>(null);
+
+  const startAcctEdit = () => {
+    setDraftName(user?.full_name ?? '');
+    setDraftEmail(user?.email ?? '');
+    setAcctSuccess(false);
+    setAcctError(null);
+    setAcctEditing(true);
+  };
+
+  const cancelAcctEdit = () => { setAcctEditing(false); setAcctError(null); };
+
+  const handleSaveAccount = async () => {
+    setAcctSaving(true); setAcctError(null); setAcctSuccess(false);
+    try {
+      const updates: { full_name?: string; email?: string } = {};
+      if (draftName  !== user?.full_name) updates.full_name = draftName;
+      if (draftEmail !== user?.email)     updates.email     = draftEmail;
+      if (Object.keys(updates).length > 0) {
+        await usersApi.updateMe(updates);
+        await refreshUser();
+      }
+      setAcctSuccess(true);
+      setAcctEditing(false);
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      setAcctError(e?.data?.detail ?? 'Failed to update profile.');
+    } finally {
+      setAcctSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPwError(null); setPwSuccess(false);
+    if (newPassword.length < 6) { setPwError('Password must be at least 6 characters.'); return; }
+    if (newPassword !== confirmPassword) { setPwError('Passwords do not match.'); return; }
+    setPwSaving(true);
+    try {
+      await usersApi.updateMe({ password: newPassword });
+      setPwSuccess(true);
+      setNewPassword(''); setConfirmPassword('');
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      setPwError(e?.data?.detail ?? 'Failed to change password.');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   // --- State ---
   const [generalInfo, setGeneralInfo] = useState({
@@ -218,6 +286,14 @@ export default function GlobalSettingsPage() {
         <aside className="w-full md:w-64 flex-shrink-0">
           <nav className="flex flex-col gap-1.5">
             <button
+              onClick={() => setActiveTab("Account")}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === "Account" ? "bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+            >
+              <User className={`w-5 h-5 transition-colors ${activeTab === "Account" ? "text-indigo-600" : "text-slate-400"}`} />
+              My Account
+            </button>
+            <button
               onClick={() => setActiveTab("General")}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === "General" ? "bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
@@ -254,6 +330,117 @@ export default function GlobalSettingsPage() {
 
         {/* Right Main Content */}
         <main className="flex-1 min-w-0 bg-white border border-slate-200 shadow-sm rounded-3xl p-8 relative overflow-hidden">
+
+          {/* TAB 0: My Account */}
+          {activeTab === "Account" && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-8">
+              {/* Profile section */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-xl font-bold text-slate-900">My Profile</h2>
+                  {!acctEditing && (
+                    <button onClick={startAcctEdit} className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-800 px-4 py-2 rounded-xl hover:bg-indigo-50 transition-colors">
+                      <Pencil className="w-4 h-4" /> Edit
+                    </button>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500 mt-1 mb-6">Your admin account name and email address.</p>
+
+                {acctSuccess && (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl px-4 py-3 mb-4">
+                    <CheckCircle2 className="h-4 w-4" /> Profile updated successfully.
+                  </div>
+                )}
+                {acctError && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4">
+                    <AlertCircle className="h-4 w-4" /> {acctError}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-5 mb-8 pb-8 border-b border-slate-100">
+                  <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-bold border-2 border-indigo-200">
+                    {(acctEditing ? draftName : user?.full_name)?.charAt(0)?.toUpperCase() ?? 'A'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{acctEditing ? draftName : user?.full_name}</p>
+                    <p className="text-xs text-slate-500 capitalize mt-0.5">{user?.role}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700">Full Name</label>
+                    <input
+                      type="text"
+                      disabled={!acctEditing}
+                      value={acctEditing ? draftName : (user?.full_name ?? '')}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all text-slate-900 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700">Email Address</label>
+                    <input
+                      type="email"
+                      disabled={!acctEditing}
+                      value={acctEditing ? draftEmail : (user?.email ?? '')}
+                      onChange={(e) => setDraftEmail(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all text-slate-900 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                {acctEditing && (
+                  <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-100">
+                    <button onClick={cancelAcctEdit} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                      <X className="w-4 h-4" /> Cancel
+                    </button>
+                    <button onClick={handleSaveAccount} disabled={acctSaving} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-60">
+                      {acctSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Save Changes
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Password section */}
+              <div className="pt-8 border-t border-slate-100">
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Change Password</h3>
+                <p className="text-sm text-slate-500 mb-6">Update your admin account password.</p>
+
+                {pwSuccess && (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl px-4 py-3 mb-4">
+                    <CheckCircle2 className="h-4 w-4" /> Password changed successfully.
+                  </div>
+                )}
+                {pwError && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4">
+                    <AlertCircle className="h-4 w-4" /> {pwError}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-xl">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700">New Password</label>
+                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700">Confirm Password</label>
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter new password"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all" />
+                  </div>
+                </div>
+                <div className="flex justify-start mt-6">
+                  <button onClick={handleChangePassword} disabled={pwSaving || !newPassword}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-60">
+                    {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                    Change Password
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* TAB 1: General Info */}
           {activeTab === "General" && (

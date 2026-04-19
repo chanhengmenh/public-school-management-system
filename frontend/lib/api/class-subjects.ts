@@ -5,4 +5,9 @@ export const classSubjectsApi = {
   list: (params?: { class_id?: number; teacher_id?: number }) =>
     client.get<ClassSubject[]>("/class-subjects", { params }),
   getById: (id: number) => client.get<ClassSubject>(`/class-subjects/${id}`),
+
+  create: (data: { class_id: number; subject_id: number; teacher_id: number }) =>
+    client.post<ClassSubject>("/class-subjects", data),
+
+  delete: (id: number) => client.delete(`/class-subjects/${id}`),
 };

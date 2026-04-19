@@ -1,27 +1,35 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-    Users, 
-    UserCheck, 
-    BookOpen, 
-    FileText, 
-    Activity, 
+import {
+    Users,
+    UserCheck,
+    BookOpen,
+    FileText,
+    Activity,
     TrendingUp,
-    Loader2
+    Loader2,
+    Megaphone
 } from 'lucide-react';
-import { analyticsApi } from '../../lib/api';
+import { analyticsApi, announcementsApi } from '../../lib/api';
 import { AdminOverview } from '../../types/school.types';
+import type { Announcement } from '../../lib/api/announcements';
+import Link from 'next/link';
 
 export default function AdminDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [overview, setOverview] = useState<AdminOverview | null>(null);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
     useEffect(() => {
         const fetchOverview = async () => {
             try {
-                const data = await analyticsApi.getAdminOverview();
+                const [data, anns] = await Promise.all([
+                    analyticsApi.getAdminOverview(),
+                    announcementsApi.list({ limit: 3 }),
+                ]);
                 setOverview(data);
+                setAnnouncements(anns);
             } catch (error) {
                 console.error("Error fetching admin overview", error);
             } finally {
@@ -80,6 +88,33 @@ export default function AdminDashboardPage() {
                             <span className="font-bold text-emerald-600">+{overview?.submissions_today}</span>
                         </div>
                     </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <Megaphone className="text-orange-400" />
+                            <h2 className="text-xl font-bold text-slate-900">Recent Announcements</h2>
+                        </div>
+                        <Link href="/admin/announcements" className="text-xs text-slate-400 hover:text-orange-500 font-medium transition-colors">
+                            Manage →
+                        </Link>
+                    </div>
+                    {announcements.length === 0 ? (
+                        <p className="text-slate-400 text-sm text-center py-4">No announcements yet.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {announcements.map(a => (
+                                <div key={a.id} className={`p-4 rounded-xl border ${a.is_pinned ? 'border-orange-200 bg-orange-50/30' : 'border-slate-100'}`}>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="font-bold text-slate-800 text-sm">{a.title}</p>
+                                        {a.is_pinned && <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0">Pinned</span>}
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{a.body}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">

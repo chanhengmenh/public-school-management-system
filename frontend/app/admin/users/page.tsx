@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { usersApi } from '@/lib/api/users';
-import { User, UserCreate, UserUpdate, UserRole } from '@/types/user.types';
+import { User, UserCreate, UserUpdate, UserRole, UserGender } from '@/types/user.types';
 import { ApiError } from '@/lib/api/client';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -39,6 +39,7 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
   const [email, setEmail] = useState(user?.email ?? '');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>(user?.role ?? UserRole.student);
+  const [gender, setGender] = useState<UserGender | ''>(user?.gender ?? '');
   const [isHomeTeacher, setIsHomeTeacher] = useState(user?.is_home_teacher ?? false);
   const [isClassMonitor, setIsClassMonitor] = useState(user?.is_class_monitor ?? false);
   const [isActive, setIsActive] = useState(user?.is_active ?? true);
@@ -57,6 +58,7 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
           full_name: fullName,
           password: password || undefined,
           role,
+          gender: gender || null,
           is_home_teacher: role === UserRole.teacher ? isHomeTeacher : false,
           is_class_monitor: role === UserRole.student ? isClassMonitor : false,
         };
@@ -66,6 +68,7 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
           email,
           full_name: fullName,
           role,
+          gender: gender || null,
           is_active: isActive,
           is_home_teacher: role === UserRole.teacher ? isHomeTeacher : false,
           is_class_monitor: role === UserRole.student ? isClassMonitor : false,
@@ -164,6 +167,21 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
             </select>
           </div>
 
+          {/* Gender */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Gender <span className="text-slate-400 font-normal">(optional)</span></label>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value as UserGender | '')}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
+            >
+              <option value="">— Not specified —</option>
+              <option value={UserGender.male}>Male</option>
+              <option value={UserGender.female}>Female</option>
+              <option value={UserGender.other}>Other</option>
+            </select>
+          </div>
+
           {/* Conditional flags */}
           {role === UserRole.teacher && (
             <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
@@ -236,6 +254,11 @@ export default function AdminUsersPage() {
   const pageSize = 50;
   const [modalUser, setModalUser] = useState<User | null | undefined>(undefined); // undefined=closed, null=create
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [resetResult, setResetResult] = useState<{ user: User; tempPassword: string } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    created: number; skipped: number; errors: number;
+    created_rows: Array<{ full_name: string; email: string; temp_password: string; class_name: string | null }>;
+  } | null>(null);
   const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   async function fetchUsers() {
@@ -296,6 +319,31 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleResetPassword(user: User) {
+    try {
+      const result = await usersApi.resetPassword(user.id);
+      setResetResult({ user, tempPassword: result.temp_password });
+    } catch {
+      setActionMsg({ type: 'error', text: 'Failed to reset password.' });
+      setTimeout(() => setActionMsg(null), 4000);
+    }
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await usersApi.importCsv(file);
+      setImportResult(result);
+      fetchUsers();
+    } catch {
+      setActionMsg({ type: 'error', text: 'Failed to import CSV.' });
+      setTimeout(() => setActionMsg(null), 4000);
+    }
+    // Reset file input
+    e.target.value = '';
+  }
+
   function handleSaved() {
     fetchUsers();
     setActionMsg({ type: 'success', text: 'User saved successfully.' });
@@ -317,13 +365,20 @@ export default function AdminUsersPage() {
           <h1 className="text-2xl font-bold text-slate-800">User Management</h1>
           <p className="text-sm text-slate-500 mt-0.5">Manage all system accounts and roles.</p>
         </div>
-        <button
-          onClick={() => setModalUser(null)}
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm"
-        >
-          <span className="text-base leading-none">+</span>
-          Add User
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+            <span className="text-base leading-none">&#8593;</span>
+            Import CSV
+            <input type="file" accept=".csv" onChange={handleImport} className="hidden" />
+          </label>
+          <button
+            onClick={() => setModalUser(null)}
+            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm"
+          >
+            <span className="text-base leading-none">+</span>
+            Add User
+          </button>
+        </div>
       </div>
 
       {/* Action message */}
@@ -390,6 +445,7 @@ export default function AdminUsersPage() {
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Name</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Email</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Role</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Gender</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Status</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Flags</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Created</th>
@@ -406,6 +462,9 @@ export default function AdminUsersPage() {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge(u.role)}`}>
                         {u.role}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-sm capitalize">
+                      {u.gender ?? <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -442,6 +501,12 @@ export default function AdminUsersPage() {
                         className="text-blue-600 hover:text-blue-800 font-medium text-xs border border-blue-200 rounded px-2.5 py-1 hover:bg-blue-50 transition-colors"
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => handleResetPassword(u)}
+                        className="text-amber-600 hover:text-amber-800 font-medium text-xs border border-amber-200 rounded px-2.5 py-1 hover:bg-amber-50 transition-colors"
+                      >
+                        Reset PW
                       </button>
                       <button
                         onClick={() => setDeleteTarget(u)}
@@ -531,6 +596,95 @@ export default function AdminUsersPage() {
           onClose={() => setModalUser(undefined)}
           onSaved={handleSaved}
         />
+      )}
+
+      {/* Import result modal */}
+      {importResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 border border-slate-200 max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-800">Import Results</h3>
+              <button onClick={() => setImportResult(null)} className="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+            </div>
+            <div className="px-6 py-4 space-y-4 overflow-y-auto">
+              <div className="flex gap-4">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 flex-1 text-center">
+                  <p className="text-2xl font-bold text-emerald-700">{importResult.created}</p>
+                  <p className="text-xs text-emerald-600">Created</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 flex-1 text-center">
+                  <p className="text-2xl font-bold text-amber-700">{importResult.skipped}</p>
+                  <p className="text-xs text-amber-600">Skipped</p>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 flex-1 text-center">
+                  <p className="text-2xl font-bold text-red-700">{importResult.errors}</p>
+                  <p className="text-xs text-red-600">Errors</p>
+                </div>
+              </div>
+
+              {importResult.created_rows.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-slate-700 mb-2">Created Accounts (save these credentials):</p>
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="text-left px-3 py-2 font-medium text-slate-600">Name</th>
+                          <th className="text-left px-3 py-2 font-medium text-slate-600">Email</th>
+                          <th className="text-left px-3 py-2 font-medium text-slate-600">Temp Password</th>
+                          <th className="text-left px-3 py-2 font-medium text-slate-600">Class</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {importResult.created_rows.map((r, i) => (
+                          <tr key={i} className="hover:bg-slate-50">
+                            <td className="px-3 py-2 text-slate-800">{r.full_name}</td>
+                            <td className="px-3 py-2 text-slate-500 font-mono text-xs">{r.email}</td>
+                            <td className="px-3 py-2 font-mono text-xs select-all text-amber-700">{r.temp_password}</td>
+                            <td className="px-3 py-2 text-slate-500">{r.class_name ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setImportResult(null)}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password reset result modal */}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 border border-slate-200 p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-800">Password Reset</h3>
+            <p className="text-sm text-slate-600">
+              Password for <span className="font-semibold text-slate-800">{resetResult.user.full_name}</span> has been reset.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+              <p className="text-xs font-medium text-amber-700 mb-1">Temporary Password</p>
+              <p className="text-lg font-mono font-bold text-amber-900 select-all">{resetResult.tempPassword}</p>
+              <p className="text-xs text-amber-600 mt-1">The user will be required to change this on next login.</p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setResetResult(null)}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete confirm modal */}

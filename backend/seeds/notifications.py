@@ -70,8 +70,10 @@ NOTIFICATIONS = [
 ]
 
 # Email prefixes for target students
-ALL_STUDENTS = [f"student{i:03d}@iams.edu" for i in range(1, 6)]   # student001–005
-MONITOR_EMAIL = "student001@iams.edu"
+# First 5 students: 2025001lim, 2025002mao, 2025003heng, 2025004nget, 2025005kong
+_FIRST_FIVE_LASTNAMES = ["lim", "mao", "heng", "nget", "kong"]
+ALL_STUDENTS = [f"2025{i:03d}{_FIRST_FIVE_LASTNAMES[i-1]}@srmk.edu.kh" for i in range(1, 6)]
+MONITOR_EMAIL = ALL_STUDENTS[0]  # 2025001lim@srmk.edu.kh
 
 
 def seed(db: Session, seeded_users: dict) -> None:
@@ -116,4 +118,4 @@ def seed(db: Session, seeded_users: dict) -> None:
             n.is_read = True
 
     db.commit()
-    print(f"  → {count} notifications created")
+    print(f"  done: {count} notifications created")

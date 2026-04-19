@@ -5,13 +5,12 @@ from app.routers import (
     auth, users, classes, subjects, class_subjects,
     enrollments, assignments, submissions, behavior_logs,
     grades, attendance, files, analytics, grade_categories,
-    schedules,
-    notifications,
+    schedules, notifications, announcements, audit_logs,
 )
 
 app = FastAPI(
-    title="IAMS API",
-    description="Intelligent Academic Management System",
+    title="PSMS API",
+    description="Public School Management System",
     version="1.0.0",
 )
 
@@ -39,6 +38,8 @@ app.include_router(analytics.router)
 app.include_router(grade_categories.router)
 app.include_router(schedules.router)
 app.include_router(notifications.router)
+app.include_router(announcements.router)
+app.include_router(audit_logs.router)
 
 
 @app.get("/health")

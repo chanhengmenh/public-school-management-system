@@ -104,11 +104,6 @@ export default function TeacherClassesPage() {
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-100">
                   Teacher
                 </span>
-                {cs.subject_code && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                    {cs.subject_code}
-                  </span>
-                )}
               </div>
             </Link>
           ))}

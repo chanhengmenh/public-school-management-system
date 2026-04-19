@@ -3,9 +3,9 @@ from app.models.user import UserRole
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 
-# Subject-specific assignment templates keyed by subject code.
-# days_offset < 0 → already past due (submissions will be seeded for these).
-# days_offset > 0 → upcoming (open for submission but not yet due).
+# Assignment templates keyed by subject code.
+# days_offset < 0 → already past due.
+# days_offset > 0 → upcoming (open for submission).
 SUBJECT_ASSIGNMENTS = {
     "MATH101": [
         {
@@ -14,9 +14,7 @@ SUBJECT_ASSIGNMENTS = {
                 "Solve problems 1–20 on linear equations. "
                 "Show all working steps and verify each answer by substitution."
             ),
-            "max_score": 100,
-            "days_offset": -14,
-            "status": AssignmentStatus.published,
+            "max_score": 100, "days_offset": -14, "status": AssignmentStatus.published,
         },
         {
             "title": "Quadratic Functions Quiz",
@@ -24,31 +22,7 @@ SUBJECT_ASSIGNMENTS = {
                 "Answer all 10 questions on quadratic functions, factoring, "
                 "and the quadratic formula. Show your working clearly."
             ),
-            "max_score": 50,
-            "days_offset": 10,
-            "status": AssignmentStatus.published,
-        },
-    ],
-    "ENG101": [
-        {
-            "title": "Descriptive Essay — My Hometown",
-            "description": (
-                "Write a 400–600 word descriptive essay about your hometown. "
-                "Focus on vivid sensory details: sights, sounds, smells, and textures."
-            ),
-            "max_score": 100,
-            "days_offset": -10,
-            "status": AssignmentStatus.published,
-        },
-        {
-            "title": "Book Summary — Chapter 1–3",
-            "description": (
-                "Write a concise summary (200–300 words) of the first three chapters "
-                "of the assigned novel. Identify the main characters and central conflict."
-            ),
-            "max_score": 50,
-            "days_offset": 7,
-            "status": AssignmentStatus.published,
+            "max_score": 50, "days_offset": 10, "status": AssignmentStatus.published,
         },
     ],
     "PHYS101": [
@@ -58,9 +32,7 @@ SUBJECT_ASSIGNMENTS = {
                 "Complete the lab report for the force and motion experiment. "
                 "Include hypothesis, procedure, data table, and conclusion."
             ),
-            "max_score": 100,
-            "days_offset": -7,
-            "status": AssignmentStatus.published,
+            "max_score": 100, "days_offset": -7, "status": AssignmentStatus.published,
         },
         {
             "title": "Energy and Work — Problem Set",
@@ -68,9 +40,7 @@ SUBJECT_ASSIGNMENTS = {
                 "Solve the 12 problems on kinetic energy, potential energy, and work. "
                 "Include diagrams where appropriate."
             ),
-            "max_score": 100,
-            "days_offset": 14,
-            "status": AssignmentStatus.published,
+            "max_score": 100, "days_offset": 14, "status": AssignmentStatus.published,
         },
     ],
     "CHEM101": [
@@ -80,9 +50,7 @@ SUBJECT_ASSIGNMENTS = {
                 "Identify the atomic number, symbol, and group for each of the 20 given elements. "
                 "Then describe one practical use for three elements of your choice."
             ),
-            "max_score": 100,
-            "days_offset": -5,
-            "status": AssignmentStatus.published,
+            "max_score": 100, "days_offset": -5, "status": AssignmentStatus.published,
         },
         {
             "title": "Chemical Bonding Report",
@@ -90,9 +58,7 @@ SUBJECT_ASSIGNMENTS = {
                 "Write a short report (250–350 words) explaining the difference between "
                 "ionic, covalent, and metallic bonds. Provide one real-world example of each."
             ),
-            "max_score": 50,
-            "days_offset": 12,
-            "status": AssignmentStatus.published,
+            "max_score": 50, "days_offset": 12, "status": AssignmentStatus.published,
         },
     ],
     "BIO101": [
@@ -102,9 +68,7 @@ SUBJECT_ASSIGNMENTS = {
                 "Draw and label the organelles of both an animal cell and a plant cell. "
                 "Below each diagram, describe the function of every labelled organelle."
             ),
-            "max_score": 100,
-            "days_offset": -12,
-            "status": AssignmentStatus.published,
+            "max_score": 100, "days_offset": -12, "status": AssignmentStatus.published,
         },
         {
             "title": "Genetics Problem Set",
@@ -112,9 +76,61 @@ SUBJECT_ASSIGNMENTS = {
                 "Complete the 8 Punnett square problems on dominant and recessive traits. "
                 "State the genotypic and phenotypic ratios for each cross."
             ),
-            "max_score": 80,
-            "days_offset": 9,
-            "status": AssignmentStatus.published,
+            "max_score": 80, "days_offset": 9, "status": AssignmentStatus.published,
+        },
+    ],
+    "ENG101": [
+        {
+            "title": "Descriptive Essay — My Hometown",
+            "description": (
+                "Write a 400–600 word descriptive essay about your hometown. "
+                "Focus on vivid sensory details: sights, sounds, smells, and textures."
+            ),
+            "max_score": 100, "days_offset": -10, "status": AssignmentStatus.published,
+        },
+        {
+            "title": "Book Summary — Chapters 1–3",
+            "description": (
+                "Write a concise summary (200–300 words) of the first three chapters "
+                "of the assigned novel. Identify the main characters and central conflict."
+            ),
+            "max_score": 50, "days_offset": 7, "status": AssignmentStatus.published,
+        },
+    ],
+    "KH101": [
+        {
+            "title": "ការតែងសេចក្ដីពណ៌នា — ផ្ទះខ្ញុំ",
+            "description": (
+                "តែងសេចក្ដីពណ៌នាអំពីផ្ទះរបស់អ្នក ចំនួន ៣០០–៤០០ ពាក្យ។ "
+                "ប្រើទម្រង់អក្សរបរិច្ឆេទ ហើយរៀបអត្ថន័យឱ្យបានច្បាស់លាស់។"
+            ),
+            "max_score": 100, "days_offset": -8, "status": AssignmentStatus.published,
+        },
+        {
+            "title": "វេយ្យាករណ៍ — ប្រើប្រាស់ព្រេចព្រាត",
+            "description": (
+                "ធ្វើលំហាត់វេយ្យាករណ៍ ១៥ ចំណុច ស្ដីពីការប្រើប្រាស់ "
+                "ព្រេចព្រាតក្នុងប្រយោគ។ ជ្រើសរើសចម្លើយត្រូវ ហើយពន្យល់ហេតុផល។"
+            ),
+            "max_score": 50, "days_offset": 11, "status": AssignmentStatus.published,
+        },
+    ],
+    "MOR101": [
+        {
+            "title": "Essay: Cambodian Values and Modern Society",
+            "description": (
+                "Write a 350-word essay discussing how traditional Cambodian values "
+                "(respect, family, solidarity) apply to modern student life."
+            ),
+            "max_score": 100, "days_offset": -6, "status": AssignmentStatus.published,
+        },
+        {
+            "title": "Case Study: Community Service Project",
+            "description": (
+                "Describe a community service activity you have done or would like to do. "
+                "Explain its benefit to society using concepts from the Morality curriculum."
+            ),
+            "max_score": 50, "days_offset": 13, "status": AssignmentStatus.published,
         },
     ],
     "HIST101": [
@@ -124,75 +140,33 @@ SUBJECT_ASSIGNMENTS = {
                 "Write a 500-word research paper on the Khmer Empire's cultural and "
                 "architectural achievements, with a focus on Angkor Wat."
             ),
-            "max_score": 100,
-            "days_offset": -8,
-            "status": AssignmentStatus.published,
+            "max_score": 100, "days_offset": -8, "status": AssignmentStatus.published,
         },
         {
-            "title": "World War II Timeline",
+            "title": "Cambodia in the 20th Century — Timeline",
             "description": (
-                "Create a chronological timeline of 15 key events of World War II (1939–1945). "
-                "For each event write one sentence explaining its significance."
+                "Create a chronological timeline of 15 key events in Cambodian history "
+                "from 1953 independence to 1993 elections. Write one sentence per event."
             ),
-            "max_score": 50,
-            "days_offset": 11,
-            "status": AssignmentStatus.published,
+            "max_score": 50, "days_offset": 11, "status": AssignmentStatus.published,
         },
     ],
-    "CS101": [
+    "GEO101": [
         {
-            "title": "Python Basics — Variables & Loops",
+            "title": "Map Work — Cambodia's Provinces",
             "description": (
-                "Write a Python program that reads 10 numbers from the user and outputs "
-                "their sum, average, minimum, and maximum. Include comments in your code."
+                "On a blank map of Cambodia, label all 25 provinces and their capitals. "
+                "Colour-code by region: plains, highlands, coastal, and Tonle Sap basin."
             ),
-            "max_score": 100,
-            "days_offset": -6,
-            "status": AssignmentStatus.published,
+            "max_score": 100, "days_offset": -9, "status": AssignmentStatus.published,
         },
         {
-            "title": "Functions and Lists Exercise",
+            "title": "Climate Zones of Southeast Asia",
             "description": (
-                "Write three Python functions: one to find the second largest number in a list, "
-                "one to reverse a string, and one to count vowels. Include test calls."
+                "Describe the three climate zones found in Southeast Asia. "
+                "For each zone, name two countries and explain how the climate affects agriculture."
             ),
-            "max_score": 100,
-            "days_offset": 8,
-            "status": AssignmentStatus.published,
-        },
-    ],
-    "FREN101": [
-        {
-            "title": "French Vocabulary Test — Unit 3",
-            "description": (
-                "Translate the 30 vocabulary words from Unit 3 into Khmer and English. "
-                "Then write one original French sentence using any 10 of the words."
-            ),
-            "max_score": 100,
-            "days_offset": -4,
-            "status": AssignmentStatus.published,
-        },
-        {
-            "title": "French Dialogue Writing",
-            "description": (
-                "Write a short dialogue (10–15 lines) in French between two friends "
-                "planning a weekend trip. Use at least five Unit 4 vocabulary words."
-            ),
-            "max_score": 50,
-            "days_offset": 15,
-            "status": AssignmentStatus.published,
-        },
-    ],
-    "PE101": [
-        {
-            "title": "Personal Fitness Plan",
-            "description": (
-                "Design a 4-week personal fitness plan that includes cardio, strength, "
-                "and flexibility training. Specify duration, sets, and reps for each session."
-            ),
-            "max_score": 100,
-            "days_offset": 5,
-            "status": AssignmentStatus.draft,
+            "max_score": 60, "days_offset": 8, "status": AssignmentStatus.published,
         },
     ],
     "ART101": [
@@ -202,21 +176,53 @@ SUBJECT_ASSIGNMENTS = {
                 "Complete a pencil still life drawing of the objects arranged in class. "
                 "Use shading to show depth. Submit a clear photo of your finished work."
             ),
-            "max_score": 100,
-            "days_offset": 3,
-            "status": AssignmentStatus.draft,
+            "max_score": 100, "days_offset": 3, "status": AssignmentStatus.draft,
         },
     ],
-    "MUS101": [
+    "ECO101": [
         {
-            "title": "Traditional Instrument Report",
+            "title": "Supply and Demand — Market Analysis",
             "description": (
-                "Write a 300-word report on a Cambodian traditional instrument of your choice. "
-                "Describe its history, construction, and role in Cambodian culture."
+                "Choose a local Cambodian product (e.g. rice, fish, garments). "
+                "Draw its supply and demand curves and explain what shifts them."
             ),
-            "max_score": 100,
-            "days_offset": 21,
-            "status": AssignmentStatus.draft,
+            "max_score": 100, "days_offset": -4, "status": AssignmentStatus.published,
+        },
+        {
+            "title": "Cambodia's GDP Growth Report",
+            "description": (
+                "Using data from 2015–2023, write a 300-word analysis of Cambodia's GDP growth. "
+                "Identify the main contributing sectors and one major risk factor."
+            ),
+            "max_score": 80, "days_offset": 15, "status": AssignmentStatus.published,
+        },
+    ],
+    "PE101": [
+        {
+            "title": "Personal Fitness Plan",
+            "description": (
+                "Design a 4-week personal fitness plan including cardio, strength, "
+                "and flexibility training. Specify duration, sets, and reps per session."
+            ),
+            "max_score": 100, "days_offset": 5, "status": AssignmentStatus.draft,
+        },
+    ],
+    "EARTH101": [
+        {
+            "title": "Rock Cycle Diagram",
+            "description": (
+                "Draw and label the complete rock cycle showing igneous, sedimentary, "
+                "and metamorphic rocks. Describe each transformation process."
+            ),
+            "max_score": 100, "days_offset": -11, "status": AssignmentStatus.published,
+        },
+        {
+            "title": "Cambodia's Natural Disaster Risk Report",
+            "description": (
+                "Write a 350-word report on the natural disasters most likely to affect Cambodia "
+                "(floods, droughts, storms). Include causes, affected regions, and prevention measures."
+            ),
+            "max_score": 80, "days_offset": 10, "status": AssignmentStatus.published,
         },
     ],
 }
@@ -226,21 +232,15 @@ def seed(db: Session, class_subjects: list, users: dict) -> list:
     if not class_subjects:
         return []
 
-    # Build lookup by id for all teachers (dynamic — works with any number of teachers)
-    teacher_by_id = {
-        u.id: u for u in users.values() if u.role == UserRole.teacher
-    }
+    teacher_by_id = {u.id: u for u in users.values() if u.role == UserRole.teacher}
     fallback_teacher = next(iter(teacher_by_id.values()), None)
 
     now = datetime.now(timezone.utc)
     created = []
 
     for cs in class_subjects:
-        # Resolve subject code via lazy-load relationship
         subject_code = cs.subject.code
         templates = SUBJECT_ASSIGNMENTS.get(subject_code, [])
-
-        # Use the teacher already assigned to this class_subject
         teacher = teacher_by_id.get(cs.teacher_id) if cs.teacher_id else fallback_teacher
 
         for tmpl in templates:
