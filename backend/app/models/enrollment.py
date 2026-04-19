@@ -10,7 +10,7 @@ class Enrollment(Base):
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
 
-    __table_args__ = (UniqueConstraint("student_id", "class_id", name="uq_enrollment"),)
+    __table_args__ = (UniqueConstraint("student_id", name="uq_student_enrollment"),)
 
     student = relationship("User", back_populates="enrollments", foreign_keys=[student_id])
     class_ = relationship("Class", back_populates="enrollments")

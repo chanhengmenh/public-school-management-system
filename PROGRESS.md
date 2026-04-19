@@ -53,11 +53,19 @@ Last updated: 2026-04-18
 
 ---
 
+## Tier 4.5 — Admin UX Enhancements
+
+| # | Task | Status |
+|---|------|--------|
+| 24 | Link students to classes during user creation: add `UNIQUE(student_id)` constraint on Enrollments; update UserCreate flow to accept optional class_id; wire Admin Users form with conditional Class dropdown | ✅ Done |
+
+---
+
 ## Tier 5 — System Event Announcements (Future)
 
 | # | Task | Status |
 |---|------|--------|
-| 20 | Auto-generated announcements for assignment events: assignment created, assignment graded, deadline delayed (Canvas-style) | 🔲 Pending |
+| 20 | Auto-generated announcements for assignment events: assignment created, assignment graded, deadline delayed (Canvas-style) | ✅ Done |
 
 ---
 
@@ -95,9 +103,79 @@ Last updated: 2026-04-18
 
 | # | Task | Status |
 |---|------|--------|
-| 21 | Refactor `StorageBackend`: structured path generation + `get_signed_url()` replacing `get_url()` | 🔲 Pending |
-| 22 | Update `files.py` router: `resource_type`/`resource_id` upload params + `GET .../signed-url` endpoint | 🔲 Pending |
-| 23 | Class materials: `Material` model + migration + CRUD router + teacher upload UI + student read-only tab | 🔲 Pending |
+| 21 | Refactor `StorageBackend`: structured path generation + `get_signed_url()` replacing `get_url()` | ✅ Done |
+| 22 | Update `files.py` router: `resource_type`/`resource_id` upload params + `GET .../signed-url` endpoint | ✅ Done |
+| 23 | Class materials: `Material` model + migration + CRUD router + teacher upload UI + student read-only tab | ✅ Done |
+| 25 | Fix notification N+1: replace per-student INSERT loop with `db.bulk_insert_mappings()` in `notification_service.py` | ✅ Done |
+
+---
+
+---
+
+## Task #23 Execution Guide (start here next session)
+
+### Context
+Tasks #21 and #22 are done: `StorageBackend` uses structured paths (`{resource_type}/{resource_id}/{uuid}_{filename}`), `POST /files/upload` accepts `resource_type` + `resource_id` query params, and `GET /files/{path}/signed-url` exists. Frontend `filesApi.upload(resourceType, resourceId, file)` and `filesApi.uploadSubmissionFile(submissionId, file)` are both in `frontend/lib/api/files.ts`.
+
+### Upload Flow for Materials (two-step, same as submissions)
+1. `POST /materials` with `{ class_subject_id, title }` → backend creates record with empty `file_path`, returns `{ id, ... }`
+2. `POST /files/upload?resource_type=materials&resource_id={material.id}` → uploads file, returns `{ stored_path }`
+3. `PUT /materials/{id}` with `{ file_path: stored_path, file_type }` → links file to material record
+
+### Backend Tasks
+- **Model** (`backend/app/models/material.py`): `id`, `class_subject_id` (FK→class_subjects), `uploader_id` (FK→users), `title`, `file_path` (nullable until uploaded), `file_type`, `created_at`
+- **Migration**: `alembic revision --autogenerate -m "add materials table"` then `alembic upgrade head`
+- **Router** (`backend/app/routers/materials.py`):
+  - `POST /materials` — teacher/admin only; creates record
+  - `PUT /materials/{id}` — teacher/admin only; sets `file_path` + `file_type` after upload
+  - `GET /class-subjects/{id}/materials` — any authenticated enrolled user
+  - `DELETE /materials/{id}` — teacher (own) or admin only
+- **Schema** (`backend/app/schemas/material.py`): `MaterialCreate`, `MaterialRead`, `MaterialUpdate`
+- **Register router** in `backend/app/main.py`
+
+### Frontend Tasks
+- **API client** (`frontend/lib/api/materials.ts`): typed wrappers for all 4 endpoints
+- **Export** from `frontend/lib/api/index.ts`
+- **Teacher Materials tab** (`frontend/app/teacher/classes/[subjectId]/materials/page.tsx`):
+  - List existing materials with title, file type, date, delete button
+  - **"Upload Material" button** opens a modal containing:
+    - Text input for **Material Title** (required)
+    - File picker — reuse the drag-drop pattern from `frontend/app/student/classes/[subjectId]/homework/[assignmentId]/page.tsx` (the `FileUpload` zone with `ACCEPTED_MIME` allowlist matching `ALLOWED_TYPES` on the backend)
+    - **Submit flow**: `POST /materials` → get `material.id` → `filesApi.upload("materials", material.id, file)` → `PUT /materials/{id}` with `stored_path`
+  - Download: call `filesApi.getSignedUrl(material.file_path)` → redirect to signed URL
+- **Student Materials tab** (`frontend/app/student/classes/[subjectId]/materials/page.tsx`):
+  - Read-only list with title, file type, date, download link (same signed-URL pattern)
+- **Add "Materials" tab** to `SubjectTabs` layout component for both teacher and student routes
+
+---
+
+## Task #25 Execution Guide (start here next session)
+
+### Context
+`notify_class_students()` in `backend/app/services/notification_service.py` currently loops per student and issues one INSERT per student. For a school with 6 grades × 8 classes × 30 students, this causes 240+ sequential DB roundtrips per assignment publish — a production bottleneck.
+
+### Fix (single file change)
+Replace the loop in `notify_class_students()` with `db.bulk_insert_mappings()`:
+
+```python
+def notify_class_students(db, class_id, title, message, type, sender):
+    from app.models.enrollment import Enrollment
+    student_ids = [
+        row.student_id
+        for row in db.query(Enrollment.student_id)
+        .filter(Enrollment.class_id == class_id)
+        .all()
+    ]
+    if not student_ids:
+        return
+    db.bulk_insert_mappings(Notification, [
+        {"user_id": sid, "title": title, "message": message,
+         "type": type, "sender": sender, "is_read": False}
+        for sid in student_ids
+    ])
+```
+
+**Result**: 240 queries → 2 queries (1 SELECT enrollments + 1 bulk INSERT). No schema changes needed.
 
 ---
 

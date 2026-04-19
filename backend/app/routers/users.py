@@ -2,10 +2,10 @@ import csv
 import io
 import secrets
 import string
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, HTTPException
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, UserGender
 from app.models.enrollment import Enrollment
 from app.models.class_ import Class
 from app.schemas.user import UserCreate, UserRead, UserUpdate, ProfileUpdate
@@ -26,9 +26,18 @@ def list_users(skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=UserRead, dependencies=[admin_only])
-def create_user(data: UserCreate, db: Session = Depends(get_db),
-                current_user: User = Depends(get_current_user)):
+def create_user(
+    data: UserCreate,
+    enrollment_class_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     user = user_service.create_user(db, data)
+    if data.role == UserRole.student and enrollment_class_id is not None:
+        cls = db.query(Class).filter(Class.id == enrollment_class_id).first()
+        if not cls:
+            raise HTTPException(status_code=404, detail=f"Class {enrollment_class_id} not found")
+        db.add(Enrollment(student_id=user.id, class_id=cls.id))
     log_action(db, current_user.id, "created", "user", user.id, f"Created {data.role.value}: {data.full_name}")
     db.commit()
     return user
@@ -77,8 +86,9 @@ async def import_users_csv(
 ):
     """Bulk import users from a CSV file.
 
-    Expected CSV columns: ``full_name, class_name`` (header row required).
+    Expected CSV columns: ``full_name, class_name`` (required), ``gender`` (optional).
     For students, ``class_name`` is used to auto-enroll. Teachers ignore it.
+    ``gender`` accepts: male, female, other (case-insensitive).
 
     Emails are auto-generated:
     - Student: ``{year}{seq:03d}{lastname}@srmk.edu.kh``
@@ -117,10 +127,20 @@ async def import_users_csv(
     for row_num, row in enumerate(reader, start=2):
         full_name = (row.get("full_name") or "").strip()
         class_name = (row.get("class_name") or "").strip()
+        gender_str = (row.get("gender") or "").strip().lower()
 
         if not full_name:
             error_rows.append({"row": row_num, "reason": "Missing full_name"})
             continue
+
+        # Parse gender (optional)
+        gender = None
+        if gender_str:
+            try:
+                gender = UserGender(gender_str)
+            except ValueError:
+                error_rows.append({"row": row_num, "reason": f"Invalid gender: {gender_str}"})
+                continue
 
         parts = full_name.split()
         first = parts[0].lower() if parts else ""
@@ -146,6 +166,7 @@ async def import_users_csv(
             email=email,
             full_name=full_name,
             role=role,
+            gender=gender,
             hashed_password=hash_password(temp_pw),
             is_home_teacher=False,
             is_class_monitor=False,

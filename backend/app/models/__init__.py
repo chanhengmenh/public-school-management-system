@@ -15,6 +15,7 @@ from app.models.schedule import ClassSchedule, DayOfWeek
 from app.models.notification import Notification, NotificationType
 from app.models.announcement import Announcement, AnnouncementTarget
 from app.models.audit_log import AuditLog
+from app.models.material import Material
 
 __all__ = [
     "User", "UserRole",
@@ -33,4 +34,5 @@ __all__ = [
     "Notification", "NotificationType",
     "Announcement", "AnnouncementTarget",
     "AuditLog",
+    "Material",
 ]

@@ -1,26 +1,30 @@
-from app.storage.base import StorageBackend
+from fastapi import HTTPException
+from supabase import create_client
+from app.storage import StorageBackend
 from app.config import settings
-import uuid
 
 
 class SupabaseStorageBackend(StorageBackend):
-    """Production storage using Supabase Storage bucket."""
+    """Supabase storage backend using private bucket + signed URLs."""
 
     def __init__(self):
-        try:
-            from supabase import create_client
-            self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-            self.bucket = settings.SUPABASE_STORAGE_BUCKET
-        except ImportError:
-            raise RuntimeError("Install supabase-py: pip install supabase")
+        self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+        self.bucket_name = settings.SUPABASE_STORAGE_BUCKET
 
-    async def save(self, file_bytes: bytes, filename: str, folder: str = "uploads") -> str:
-        stored_path = f"{folder}/{uuid.uuid4()}_{filename}"
-        self.client.storage.from_(self.bucket).upload(stored_path, file_bytes)
+    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int) -> str:
+        """Save file to Supabase and return stored_path."""
+        stored_path = self.generate_path(resource_type, resource_id, filename)
+        response = self.client.storage.from_(self.bucket_name).upload(stored_path, content)
+        if hasattr(response, "error") and response.error:
+            raise HTTPException(status_code=500, detail=f"Storage upload failed: {response.error}")
         return stored_path
 
-    async def get_url(self, stored_path: str) -> str:
-        return self.client.storage.from_(self.bucket).get_public_url(stored_path)
-
-    async def delete(self, stored_path: str) -> None:
-        self.client.storage.from_(self.bucket).remove([stored_path])
+    def get_signed_url(self, stored_path: str, expires_in: int = 3600) -> str:
+        """Get a signed URL from Supabase (private bucket)."""
+        response = self.client.storage.from_(self.bucket_name).create_signed_url(stored_path, expires_in)
+        # supabase-py v1 returns dict; v2 returns object with .data
+        if isinstance(response, dict):
+            return response.get("signedURL") or response.get("signedUrl", "")
+        if hasattr(response, "data") and response.data:
+            return response.data.get("signedURL") or response.data.get("signedUrl", "")
+        return ""

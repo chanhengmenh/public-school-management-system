@@ -5,7 +5,8 @@ export const usersApi = {
   list: (params?: { skip?: number; limit?: number }) =>
     client.get<User[]>("/users", { params }),
 
-  create: (data: UserCreate) => client.post<User>("/users", data),
+  create: (data: UserCreate, classId?: number) =>
+    client.post<User>("/users", data, { params: classId ? { enrollment_class_id: classId } : {} }),
 
   getMe: () => client.get<User>("/users/me"),
 

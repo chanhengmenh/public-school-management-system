@@ -1,5 +1,5 @@
 from pathlib import Path
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
@@ -9,6 +9,8 @@ from app.config import settings
 from app.core.exceptions import NotFoundError
 
 router = APIRouter(prefix="/files", tags=["files"])
+
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 
 ALLOWED_TYPES = {
     "application/pdf",
@@ -32,28 +34,42 @@ def _get_storage_backend():
 
 @router.post("/upload", response_model=dict)
 async def upload_file(
-    submission_id: int,
+    resource_type: str = Query("submissions"),
+    resource_id: int = Query(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(status_code=400, detail="File type not allowed")
+    if not file.content_type or file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_TYPES))}")
 
     backend = _get_storage_backend()
     content = await file.read()
-    stored_path = await backend.save(content, file.filename or "upload", folder="submissions")
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB")
+    stored_path = await backend.save(content, file.filename or "upload", resource_type, resource_id)
 
-    record = SubmissionFile(
-        submission_id=submission_id,
-        file_url=stored_path,
-        file_type=file.content_type,
-        original_filename=file.filename,
-    )
-    db.add(record)
-    db.commit()
-    db.refresh(record)
-    return {"file_id": record.id, "stored_path": stored_path}
+    if resource_type == "submissions":
+        record = SubmissionFile(
+            submission_id=resource_id,
+            file_url=stored_path,
+            file_type=file.content_type,
+            original_filename=file.filename,
+        )
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        return {"file_id": record.id, "stored_path": stored_path}
+
+    return {"stored_path": stored_path}
+
+
+@router.get("/{file_path:path}/signed-url", response_model=dict)
+def get_signed_url(file_path: str, expires: int = Query(3600), _: User = Depends(get_current_user)):
+    """Get a signed URL for a stored file (private bucket only for Supabase)."""
+    backend = _get_storage_backend()
+    signed_url = backend.get_signed_url(file_path, expires)
+    return {"url": signed_url}
 
 
 @router.get("/{file_path:path}")

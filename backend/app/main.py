@@ -5,7 +5,7 @@ from app.routers import (
     auth, users, classes, subjects, class_subjects,
     enrollments, assignments, submissions, behavior_logs,
     grades, attendance, files, analytics, grade_categories,
-    schedules, notifications, announcements, audit_logs,
+    schedules, notifications, announcements, audit_logs, materials,
 )
 
 app = FastAPI(
@@ -40,6 +40,7 @@ app.include_router(schedules.router)
 app.include_router(notifications.router)
 app.include_router(announcements.router)
 app.include_router(audit_logs.router)
+app.include_router(materials.router)
 
 
 @app.get("/health")

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { usersApi } from '@/lib/api/users';
+import { classesApi } from '@/lib/api/classes';
 import { User, UserCreate, UserUpdate, UserRole, UserGender } from '@/types/user.types';
+import { Class } from '@/types/school.types';
 import { ApiError } from '@/lib/api/client';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -28,11 +30,12 @@ function formatDate(iso: string) {
 
 interface ModalProps {
   user: User | null; // null = create mode
+  classes: Class[];
   onClose: () => void;
   onSaved: () => void;
 }
 
-function UserModal({ user, onClose, onSaved }: ModalProps) {
+function UserModal({ user, classes, onClose, onSaved }: ModalProps) {
   const isCreate = user === null;
 
   const [fullName, setFullName] = useState(user?.full_name ?? '');
@@ -40,6 +43,7 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>(user?.role ?? UserRole.student);
   const [gender, setGender] = useState<UserGender | ''>(user?.gender ?? '');
+  const [classId, setClassId] = useState<number | ''>('');
   const [isHomeTeacher, setIsHomeTeacher] = useState(user?.is_home_teacher ?? false);
   const [isClassMonitor, setIsClassMonitor] = useState(user?.is_class_monitor ?? false);
   const [isActive, setIsActive] = useState(user?.is_active ?? true);
@@ -62,7 +66,7 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
           is_home_teacher: role === UserRole.teacher ? isHomeTeacher : false,
           is_class_monitor: role === UserRole.student ? isClassMonitor : false,
         };
-        await usersApi.create(payload);
+        await usersApi.create(payload, role === UserRole.student && classId ? classId : undefined);
       } else {
         const payload: UserUpdate = {
           email,
@@ -182,6 +186,26 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
             </select>
           </div>
 
+          {/* Class enrollment (students only, create mode only) */}
+          {isCreate && role === UserRole.student && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Class <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <select
+                value={classId}
+                onChange={(e) => setClassId(e.target.value ? Number(e.target.value) : '')}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white"
+              >
+                <option value="">— Enroll later —</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.academic_year})</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Teacher assignments are managed in Cohort Setup.</p>
+            </div>
+          )}
+
           {/* Conditional flags */}
           {role === UserRole.teacher && (
             <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
@@ -246,6 +270,7 @@ function UserModal({ user, onClose, onSaved }: ModalProps) {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -276,6 +301,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers();
+    classesApi.list().then(setClasses).catch(() => {});
   }, []);
 
   // Stats
@@ -593,6 +619,7 @@ export default function AdminUsersPage() {
       {modalUser !== undefined && (
         <UserModal
           user={modalUser}
+          classes={classes}
           onClose={() => setModalUser(undefined)}
           onSaved={handleSaved}
         />

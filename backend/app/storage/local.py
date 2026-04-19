@@ -1,27 +1,19 @@
-import os
-import uuid
 from pathlib import Path
-from app.storage.base import StorageBackend
+from app.storage import StorageBackend
 from app.config import settings
 
 
 class LocalFilesystemBackend(StorageBackend):
-    def __init__(self):
-        self.base_dir = Path(settings.LOCAL_UPLOAD_DIR)
-        self.base_dir.mkdir(parents=True, exist_ok=True)
+    """Local filesystem storage backend."""
 
-    async def save(self, file_bytes: bytes, filename: str, folder: str = "uploads") -> str:
-        folder_path = self.base_dir / folder
-        folder_path.mkdir(parents=True, exist_ok=True)
-        unique_name = f"{uuid.uuid4()}_{filename}"
-        file_path = folder_path / unique_name
-        file_path.write_bytes(file_bytes)
-        return f"{folder}/{unique_name}"
+    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int) -> str:
+        """Save file to local filesystem and return stored_path."""
+        stored_path = self.generate_path(resource_type, resource_id, filename)
+        full_path = Path(settings.LOCAL_UPLOAD_DIR) / stored_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_bytes(content)
+        return stored_path
 
-    async def get_url(self, stored_path: str) -> str:
+    def get_signed_url(self, stored_path: str, expires_in: int = 3600) -> str:
+        """Return auth-gated file serve URL."""
         return f"/files/{stored_path}"
-
-    async def delete(self, stored_path: str) -> None:
-        file_path = self.base_dir / stored_path
-        if file_path.exists():
-            file_path.unlink()

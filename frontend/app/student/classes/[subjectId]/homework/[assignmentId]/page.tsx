@@ -219,7 +219,7 @@ export default function AssignmentDetailPage() {
 
             // 2. Upload file if needed
             if ((mode === 'file' || mode === 'both') && selectedFile) {
-                await filesApi.upload(created.id, selectedFile);
+                await filesApi.uploadSubmissionFile(created.id, selectedFile);
                 // Re-fetch to get the files array populated
                 const refreshed = await submissionsApi.getById(created.id);
                 setSubmission(refreshed);

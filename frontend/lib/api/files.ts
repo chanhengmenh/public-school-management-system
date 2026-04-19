@@ -1,18 +1,42 @@
 import { client } from "./client";
 
-export interface UploadResponse {
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export interface SubmissionUploadResponse {
   file_id: number;
   stored_path: string;
 }
 
+export interface GenericUploadResponse {
+  stored_path: string;
+}
+
+export type UploadResponse = SubmissionUploadResponse | GenericUploadResponse;
+
 export const filesApi = {
-  upload: (submissionId: number, file: File) => {
+  /** Upload a file attached to a submission. */
+  uploadSubmissionFile: (submissionId: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return client.post<SubmissionUploadResponse>("/files/upload", form, {
+      params: { resource_type: "submissions", resource_id: submissionId },
+    });
+  },
+
+  /** Upload a file for any resource type (e.g. materials). */
+  upload: (resourceType: string, resourceId: number, file: File) => {
     const form = new FormData();
     form.append("file", file);
     return client.post<UploadResponse>("/files/upload", form, {
-      params: { submission_id: submissionId },
+      params: { resource_type: resourceType, resource_id: resourceId },
     });
   },
+
+  /** Get a signed (or auth-gated) URL for a stored file. */
+  getSignedUrl: (storedPath: string, expiresIn = 3600) =>
+    client.get<{ url: string }>(`/files/${storedPath}/signed-url`, {
+      params: { expires: expiresIn },
+    }),
 };
 
 /**
@@ -21,7 +45,6 @@ export const filesApi = {
  * Call URL.revokeObjectURL(url) when the component unmounts.
  */
 export async function fetchFileAsBlob(storedPath: string): Promise<string> {
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   const res = await fetch(`${BASE_URL}/files/${storedPath}`, {
