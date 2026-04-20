@@ -13,9 +13,8 @@ build/
 htmlcov/
 .coverage
 
-# Alembic
-backend/alembic/versions/*.py
-!backend/alembic/versions/.gitkeep
+# Alembic — track all migration files
+# (previously ignored, now included)
 
 # Uploads
 backend/uploads/*
