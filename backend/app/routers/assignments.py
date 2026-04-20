@@ -91,10 +91,16 @@ def update_assignment(assignment_id: int, data: AssignmentUpdate, db: Session = 
     if not obj:
         raise NotFoundError()
     update_dict = data.model_dump(exclude_unset=True)
+    def _aware(dt):
+        if dt is None:
+            return None
+        from datetime import timezone as _tz
+        return dt if dt.tzinfo else dt.replace(tzinfo=_tz.utc)
+
     deadline_changed = (
         "due_date" in update_dict
         and obj.status == AssignmentStatus.published
-        and update_dict["due_date"] != obj.due_date
+        and _aware(update_dict["due_date"]) != _aware(obj.due_date)
     )
     for field, value in update_dict.items():
         setattr(obj, field, value)

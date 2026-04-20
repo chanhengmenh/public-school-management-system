@@ -14,6 +14,7 @@ interface NewAssignmentForm {
   max_score: number;
   category_id: string;
   submission_type: 'text' | 'file' | 'both';
+  max_attempts: string;
 }
 
 const EMPTY_FORM: NewAssignmentForm = {
@@ -23,6 +24,7 @@ const EMPTY_FORM: NewAssignmentForm = {
   max_score: 100,
   category_id: "",
   submission_type: "text",
+  max_attempts: "",
 };
 
 function StatusBadge({ status }: { status: Assignment["status"] }) {
@@ -107,6 +109,7 @@ export default function TeacherSubjectPage() {
       max_score: asn.max_score,
       category_id: asn.category_id ? String(asn.category_id) : "",
       submission_type: (asn.submission_type as NewAssignmentForm["submission_type"]) ?? "text",
+      max_attempts: asn.max_attempts != null ? String(asn.max_attempts) : "",
     });
     setFormError(null);
     setShowForm(true);
@@ -134,10 +137,11 @@ export default function TeacherSubjectPage() {
         class_subject_id: subjectId,
         title: form.title.trim(),
         description: form.description.trim() || undefined,
-        due_date: form.due_date || undefined,
+        due_date: form.due_date ? new Date(form.due_date).toISOString() : undefined,
         max_score: Number(form.max_score),
         category_id: form.category_id ? parseInt(form.category_id, 10) : null,
         submission_type: form.submission_type,
+        max_attempts: form.max_attempts ? parseInt(form.max_attempts, 10) : null,
       };
       if (editTarget) {
         const updated = await assignmentsApi.update(editTarget.id, payload);
@@ -274,8 +278,8 @@ export default function TeacherSubjectPage() {
               />
             </div>
 
-            {/* Due date + Max score */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Due date + Max score + Attempts */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
                   Due Date
@@ -299,6 +303,20 @@ export default function TeacherSubjectPage() {
                   onChange={handleFormChange}
                   min={1}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Attempts Allowed
+                </label>
+                <input
+                  type="number"
+                  name="max_attempts"
+                  value={form.max_attempts}
+                  onChange={handleFormChange}
+                  min={1}
+                  placeholder="Unlimited"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                 />
               </div>
             </div>

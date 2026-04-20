@@ -128,6 +128,7 @@ export default function AssignmentDetailPage() {
 
     const [assignment, setAssignment] = useState<Assignment | null>(null);
     const [submission, setSubmission] = useState<Submission | null>(null);
+    const [attemptCount, setAttemptCount] = useState(0);
     const [grade, setGrade] = useState<Grade | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -157,7 +158,9 @@ export default function AssignmentDetailPage() {
             // Lock submission mode to the assignment's required type
             setMode(asgn.submission_type as SubmissionMode);
 
-            const existing = subs.length > 0 ? subs[0] : null;
+            // Use the latest submission; track total attempt count
+            const existing = subs.length > 0 ? subs[subs.length - 1] : null;
+            setAttemptCount(subs.length);
             setSubmission(existing);
 
             if (existing) {
@@ -267,8 +270,12 @@ export default function AssignmentDetailPage() {
     const isClosed = assignment.status === 'closed';
     const isDraft = assignment.status === 'draft';
     const isPublished = assignment.status === 'published';
+    const attemptsRemaining = assignment.max_attempts != null
+        ? assignment.max_attempts - attemptCount
+        : null; // null = unlimited
+    const hasAttemptsLeft = attemptsRemaining === null || attemptsRemaining > 0;
     const canSubmit = isPublished && (!submission || resubmitting);
-    const canResubmit = isPublished && !!submission && !grade && !resubmitting;
+    const canResubmit = isPublished && !!submission && !grade && !resubmitting && hasAttemptsLeft;
 
     // ─── Render ──────────────────────────────────────────────────────────────
     return (
@@ -309,6 +316,17 @@ export default function AssignmentDetailPage() {
                             <span className="font-semibold text-slate-800">
                                 {new Date(assignment.due_date).toLocaleString()}
                             </span>
+                        </span>
+                    )}
+                    {assignment.max_attempts != null && (
+                        <span className={`flex items-center gap-1 ${attemptsRemaining === 0 ? 'text-red-500' : ''}`}>
+                            Attempts:{' '}
+                            <span className="font-semibold text-slate-800">
+                                {attemptCount} / {assignment.max_attempts}
+                            </span>
+                            {attemptsRemaining === 0 && (
+                                <span className="text-xs text-red-500 font-medium">(no attempts left)</span>
+                            )}
                         </span>
                     )}
                     {(() => {

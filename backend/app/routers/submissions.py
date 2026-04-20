@@ -26,6 +26,14 @@ def create_submission(data: SubmissionCreate, db: Session = Depends(get_db),
     if allowed_type != "both" and data.submission_type != allowed_type:
         raise ForbiddenError(f"This assignment only accepts {allowed_type} submissions")
 
+    if assignment.max_attempts is not None:
+        attempt_count = db.query(AssignmentSubmission).filter(
+            AssignmentSubmission.assignment_id == data.assignment_id,
+            AssignmentSubmission.student_id == current_user.id,
+        ).count()
+        if attempt_count >= assignment.max_attempts:
+            raise ForbiddenError(f"Maximum attempts ({assignment.max_attempts}) reached")
+
     is_late = False
     if assignment.due_date:
         now = datetime.now(timezone.utc)

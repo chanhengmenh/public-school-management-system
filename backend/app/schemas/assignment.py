@@ -12,6 +12,7 @@ class AssignmentCreate(BaseModel):
     max_score: int = 100
     category_id: Optional[int] = None
     submission_type: SubmissionType = SubmissionType.text
+    max_attempts: Optional[int] = None
 
 
 class AssignmentUpdate(BaseModel):
@@ -22,6 +23,7 @@ class AssignmentUpdate(BaseModel):
     status: Optional[AssignmentStatus] = None
     category_id: Optional[int] = None
     submission_type: Optional[SubmissionType] = None
+    max_attempts: Optional[int] = None
 
 
 class AssignmentRead(BaseModel):
@@ -36,5 +38,6 @@ class AssignmentRead(BaseModel):
     created_at: datetime
     category_id: Optional[int] = None
     submission_type: SubmissionType = SubmissionType.text
+    max_attempts: Optional[int] = None
 
     model_config = {"from_attributes": True}

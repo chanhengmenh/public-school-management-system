@@ -34,6 +34,7 @@ class Assignment(Base):
 
     submission_type = Column(String, default="text", nullable=False, server_default="text")
     category_id = Column(Integer, ForeignKey("grade_categories.id", ondelete="SET NULL"), nullable=True)
+    max_attempts = Column(Integer, nullable=True)  # NULL = unlimited
 
     class_subject = relationship("ClassSubject", back_populates="assignments")
     publisher = relationship("User", foreign_keys=[publisher_id])

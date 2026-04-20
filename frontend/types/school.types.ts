@@ -133,4 +133,5 @@ export interface Assignment {
   submission_type: 'text' | 'file' | 'both';
   created_at: string;
   category_id?: number | null;
+  max_attempts?: number | null;
 }
