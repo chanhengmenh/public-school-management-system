@@ -87,7 +87,8 @@ export default function TeacherAnalysisPage() {
                                 <YAxis />
                                 <Tooltip
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    formatter={(value: number | undefined) => [value != null ? `${value.toFixed(1)} pts` : 'N/A', 'Avg Score']}
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    formatter={(value: any) => [value != null ? `${(value as number).toFixed(1)} pts` : 'N/A', 'Avg Score']}
                                 />
                                 <Bar dataKey="average_score" radius={[4, 4, 0, 0]} barSize={48}>
                                     {analytics.subject_averages.map((_, i) => (

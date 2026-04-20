@@ -13,7 +13,7 @@ from app.services import user_service
 from app.core.security import hash_password
 from app.core.permissions import require_roles
 from app.core.exceptions import ForbiddenError
-from app.services.audit_service import log_action
+from app.services.audit_service import log_action, format_detail_bulk
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -199,7 +199,8 @@ async def import_users_csv(
 
     if created_rows:
         log_action(db, current_user.id, "imported", "user", None,
-                   f"CSV import: {len(created_rows)} {role.value}(s) created")
+                   detail=format_detail_bulk("imported", len(created_rows), f"{role.value}(s) via CSV"),
+                   payload={"created": len(created_rows), "skipped": len(skipped_rows), "errors": len(error_rows), "role": role.value})
     db.commit()
 
     return {

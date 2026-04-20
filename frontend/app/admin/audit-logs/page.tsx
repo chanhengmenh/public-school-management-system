@@ -3,14 +3,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/layouts/PageHeader';
 import { auditLogsApi, AuditLog } from '@/lib/api/audit-logs';
-import { ShieldCheck, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Loader2, AlertCircle, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 
 const ACTION_COLORS: Record<string, string> = {
-  created: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  updated: 'bg-blue-50 text-blue-700 border-blue-200',
-  deleted: 'bg-red-50 text-red-700 border-red-200',
+  created:        'bg-emerald-50 text-emerald-700 border-emerald-200',
+  updated:        'bg-blue-50 text-blue-700 border-blue-200',
+  deleted:        'bg-red-50 text-red-700 border-red-200',
   reset_password: 'bg-amber-50 text-amber-700 border-amber-200',
-  imported: 'bg-purple-50 text-purple-700 border-purple-200',
+  imported:       'bg-purple-50 text-purple-700 border-purple-200',
+  enrolled:       'bg-teal-50 text-teal-700 border-teal-200',
+  unenrolled:     'bg-orange-50 text-orange-700 border-orange-200',
 };
 
 function actionBadge(action: string) {
@@ -25,8 +27,89 @@ function formatDate(iso: string) {
   });
 }
 
-const ACTIONS = ['', 'created', 'updated', 'deleted', 'reset_password', 'imported'];
-const RESOURCE_TYPES = ['', 'user', 'class', 'enrollment', 'assignment', 'announcement'];
+const ACTIONS = ['created', 'updated', 'deleted', 'reset_password', 'imported', 'enrolled', 'unenrolled'];
+const RESOURCE_TYPES = ['user', 'grade', 'enrollment', 'class', 'assignment', 'announcement'];
+
+function PayloadDiff({ payload }: { payload: AuditLog['payload'] }) {
+  if (!payload) return null;
+  const { before, after } = payload;
+  const keys = Array.from(new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]));
+  if (keys.length === 0) return null;
+
+  return (
+    <div className="mt-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+      <table className="w-full">
+        <thead>
+          <tr className="bg-slate-100 text-slate-500">
+            <th className="text-left px-3 py-1.5 font-semibold w-24">Field</th>
+            <th className="text-left px-3 py-1.5 font-semibold text-red-500">Before</th>
+            <th className="text-left px-3 py-1.5 font-semibold text-emerald-600">After</th>
+          </tr>
+        </thead>
+        <tbody>
+          {keys.map(k => (
+            <tr key={k} className="border-t border-slate-100">
+              <td className="px-3 py-1.5 text-slate-600">{k}</td>
+              <td className="px-3 py-1.5 text-red-500">{String(before?.[k] ?? '—')}</td>
+              <td className="px-3 py-1.5 text-emerald-700">{String(after?.[k] ?? '—')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function LogRow({ log, idx, offset }: { log: AuditLog; idx: number; offset: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasPayload = log.payload && (
+    Object.keys(log.payload.before ?? {}).length > 0 ||
+    Object.keys(log.payload.after ?? {}).length > 0
+  );
+
+  return (
+    <>
+      <tr
+        className={`hover:bg-slate-50 transition-colors ${hasPayload ? 'cursor-pointer' : ''}`}
+        onClick={() => hasPayload && setExpanded(e => !e)}
+      >
+        <td className="px-4 py-3 text-slate-400">{offset + idx + 1}</td>
+        <td className="px-4 py-3 font-medium text-slate-800">
+          {log.actor_name ?? `#${log.actor_id}`}
+        </td>
+        <td className="px-4 py-3">
+          <span className={actionBadge(log.action)}>{log.action}</span>
+        </td>
+        <td className="px-4 py-3 text-slate-600">
+          <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">{log.resource_type}</span>
+          {log.resource_id != null && (
+            <span className="text-slate-400 text-xs ml-1">#{log.resource_id}</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-slate-500 max-w-xs">
+          <div className="flex items-center gap-1">
+            {hasPayload && (
+              expanded
+                ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            )}
+            <span className="truncate" title={log.detail ?? ''}>{log.detail ?? '—'}</span>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-slate-400 whitespace-nowrap text-xs">
+          {formatDate(log.created_at)}
+        </td>
+      </tr>
+      {expanded && hasPayload && (
+        <tr className="bg-slate-50">
+          <td colSpan={6} className="px-6 pb-4 pt-1">
+            <PayloadDiff payload={log.payload} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -55,13 +138,8 @@ export default function AuditLogsPage() {
     }
   }, [actionFilter, resourceFilter, page]);
 
-  useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
-
-  useEffect(() => {
-    setPage(0);
-  }, [actionFilter, resourceFilter]);
+  useEffect(() => { loadLogs(); }, [loadLogs]);
+  useEffect(() => { setPage(0); }, [actionFilter, resourceFilter]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -79,9 +157,7 @@ export default function AuditLogsPage() {
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
         >
           <option value="">All Actions</option>
-          {ACTIONS.filter(Boolean).map(a => (
-            <option key={a} value={a}>{a}</option>
-          ))}
+          {ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
         <select
           value={resourceFilter}
@@ -89,9 +165,7 @@ export default function AuditLogsPage() {
           className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
         >
           <option value="">All Resources</option>
-          {RESOURCE_TYPES.filter(Boolean).map(r => (
-            <option key={r} value={r}>{r}</option>
-          ))}
+          {RESOURCE_TYPES.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
         <button
           onClick={loadLogs}
@@ -99,6 +173,7 @@ export default function AuditLogsPage() {
         >
           <RefreshCw className="w-4 h-4" /> Refresh
         </button>
+        <p className="text-xs text-slate-400 ml-auto">Click a row to expand before/after diff</p>
       </div>
 
       {/* Table */}
@@ -133,27 +208,7 @@ export default function AuditLogsPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {logs.map((log, idx) => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-slate-400">{page * pageSize + idx + 1}</td>
-                    <td className="px-4 py-3 font-medium text-slate-800">
-                      {log.actor_name ?? `#${log.actor_id}`}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={actionBadge(log.action)}>{log.action}</span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">{log.resource_type}</span>
-                      {log.resource_id != null && (
-                        <span className="text-slate-400 text-xs ml-1">#{log.resource_id}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 max-w-xs truncate" title={log.detail ?? ''}>
-                      {log.detail ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 whitespace-nowrap text-xs">
-                      {formatDate(log.created_at)}
-                    </td>
-                  </tr>
+                  <LogRow key={log.id} log={log} idx={idx} offset={page * pageSize} />
                 ))}
               </tbody>
             </table>

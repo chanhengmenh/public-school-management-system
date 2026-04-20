@@ -249,11 +249,13 @@ export default function AdminAnalyticsPage() {
                             />
                             <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
                             <Tooltip
-                              formatter={(value: number | undefined) =>
-                                value !== undefined
-                                  ? [`${value.toFixed(1)} pts`, 'Avg Score']
-                                  : ['N/A', 'Avg Score']
-                              }
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              formatter={(value: any) => {
+                                const num = typeof value === 'number' ? value : undefined;
+                                return num !== undefined
+                                  ? [`${num.toFixed(1)} pts`, 'Avg Score']
+                                  : ['N/A', 'Avg Score'];
+                              }}
                               contentStyle={{
                                 borderRadius: '0.75rem',
                                 border: '1px solid #e2e8f0',

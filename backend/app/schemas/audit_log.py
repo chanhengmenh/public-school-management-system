@@ -11,6 +11,7 @@ class AuditLogRead(BaseModel):
     resource_type: str
     resource_id: Optional[int] = None
     detail: Optional[str] = None
+    payload: Optional[dict] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -27,6 +28,7 @@ class AuditLogRead(BaseModel):
                 "resource_type": data.resource_type,
                 "resource_id": data.resource_id,
                 "detail": data.detail,
+                "payload": data.payload,
                 "created_at": data.created_at,
             }
         return data

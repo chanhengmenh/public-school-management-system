@@ -25,7 +25,9 @@ async function request<T>(
 ): Promise<T> {
   const { params, headers, body, ...rest } = options;
 
-  const url = new URL(`${BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`);
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const normalizedPath = path.includes("?") || path.endsWith("/") ? path : `${path}/`;
+  const url = new URL(`${BASE_URL}${normalizedPath}`);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       url.searchParams.append(key, String(value));

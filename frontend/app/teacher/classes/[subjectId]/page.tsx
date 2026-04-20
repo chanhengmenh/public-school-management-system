@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Plus, Trash2, Send, AlertCircle, X, Users } from "lucide-react";
+import { Loader2, Plus, Trash2, Send, AlertCircle, X, Users, Pencil } from "lucide-react";
 import { assignmentsApi, gradeCategoriesApi } from "@/lib/api";
 import { Assignment, GradeCategory } from "@/types/school.types";
 
@@ -62,6 +62,7 @@ export default function TeacherSubjectPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<Assignment | null>(null);
   const [form, setForm] = useState<NewAssignmentForm>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -97,6 +98,27 @@ export default function TeacherSubjectPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function openEdit(asn: Assignment) {
+    setEditTarget(asn);
+    setForm({
+      title: asn.title,
+      description: asn.description ?? "",
+      due_date: asn.due_date ? asn.due_date.slice(0, 16) : "",
+      max_score: asn.max_score,
+      category_id: asn.category_id ? String(asn.category_id) : "",
+      submission_type: (asn.submission_type as NewAssignmentForm["submission_type"]) ?? "text",
+    });
+    setFormError(null);
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditTarget(null);
+    setForm(EMPTY_FORM);
+    setFormError(null);
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
@@ -117,12 +139,16 @@ export default function TeacherSubjectPage() {
         category_id: form.category_id ? parseInt(form.category_id, 10) : null,
         submission_type: form.submission_type,
       };
-      const created = await assignmentsApi.create(payload);
-      setAssignments((prev) => [created, ...prev]);
-      setForm(EMPTY_FORM);
-      setShowForm(false);
+      if (editTarget) {
+        const updated = await assignmentsApi.update(editTarget.id, payload);
+        setAssignments((prev) => prev.map((a) => (a.id === editTarget.id ? updated : a)));
+      } else {
+        const created = await assignmentsApi.create(payload);
+        setAssignments((prev) => [created, ...prev]);
+      }
+      closeForm();
     } catch {
-      setFormError("Failed to create assignment. Please try again.");
+      setFormError(editTarget ? "Failed to update assignment." : "Failed to create assignment. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -194,10 +220,7 @@ export default function TeacherSubjectPage() {
         </div>
         {!showForm && (
           <button
-            onClick={() => {
-              setShowForm(true);
-              setFormError(null);
-            }}
+            onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setFormError(null); setShowForm(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
@@ -210,13 +233,9 @@ export default function TeacherSubjectPage() {
       {showForm && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-semibold text-slate-900">New Assignment</h2>
+            <h2 className="font-semibold text-slate-900">{editTarget ? "Edit Assignment" : "New Assignment"}</h2>
             <button
-              onClick={() => {
-                setShowForm(false);
-                setForm(EMPTY_FORM);
-                setFormError(null);
-              }}
+              onClick={closeForm}
               className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <X className="h-4 w-4" />
@@ -358,11 +377,7 @@ export default function TeacherSubjectPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setForm(EMPTY_FORM);
-                  setFormError(null);
-                }}
+                onClick={closeForm}
                 className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 Cancel
@@ -455,6 +470,13 @@ export default function TeacherSubjectPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEdit(asn)}
+                          title="Edit"
+                          className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
                         {asn.status !== "draft" && (
                           <Link
                             href={`/teacher/classes/${subjectId}/submissions/${asn.id}`}

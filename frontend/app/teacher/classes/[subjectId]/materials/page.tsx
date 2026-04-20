@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Upload, FileText, Trash2, Download, Loader2, AlertCircle, X, CheckCircle2, Eye } from "lucide-react";
-import { materialsApi, fetchFileAsBlob, Material } from "@/lib/api";
+import { materialsApi, filesApi, fetchFileAsBlob, Material } from "@/lib/api";
 import FilePreviewModal, { PreviewTarget } from "@/components/materials/FilePreviewModal";
 
 const ACCEPTED_MIME = [

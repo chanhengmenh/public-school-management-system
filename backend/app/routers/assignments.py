@@ -13,10 +13,22 @@ from app.models.notification import NotificationType
 router = APIRouter(prefix="/assignments", tags=["assignments"])
 
 
-def _get_class_id(db: Session, class_subject_id: int) -> int | None:
+def _get_class_context(db: Session, class_subject_id: int):
+    """Returns (class_id, subject_name, class_name) or (None, None, None)."""
     from app.models.class_subject import ClassSubject
+    from app.models.subject import Subject
+    from app.models.class_ import Class
     cs = db.query(ClassSubject).filter(ClassSubject.id == class_subject_id).first()
-    return cs.class_id if cs else None
+    if not cs:
+        return None, None, None
+    subject = db.query(Subject).filter(Subject.id == cs.subject_id).first()
+    cls = db.query(Class).filter(Class.id == cs.class_id).first()
+    return cs.class_id, (subject.name if subject else "Unknown"), (cls.name if cls else "Unknown")
+
+
+def _get_class_id(db: Session, class_subject_id: int) -> int | None:
+    class_id, _, _ = _get_class_context(db, class_subject_id)
+    return class_id
 
 
 def _fmt_date(dt) -> str:
@@ -47,10 +59,10 @@ def create_assignment(data: AssignmentCreate, db: Session = Depends(get_db),
     db.add(obj)
     db.flush()
     if obj.status == AssignmentStatus.published:
-        class_id = _get_class_id(db, obj.class_subject_id)
+        class_id, subject_name, class_name = _get_class_context(db, obj.class_subject_id)
         if class_id:
             title = f"New Assignment: {obj.title}"
-            body = f'A new assignment "{obj.title}" has been posted. Due: {_fmt_date(obj.due_date)}.'
+            body = f"New Assignment: {obj.title} | {subject_name} - {class_name}. Due: {_fmt_date(obj.due_date)}."
             create_system_announcement(db, current_user.id, title, body, class_id)
             notify_class_students(
                 db, class_id, title, body,
@@ -110,10 +122,10 @@ def publish_assignment(assignment_id: int, db: Session = Depends(get_db),
     if not obj:
         raise NotFoundError()
     obj.status = AssignmentStatus.published
-    class_id = _get_class_id(db, obj.class_subject_id)
+    class_id, subject_name, class_name = _get_class_context(db, obj.class_subject_id)
     if class_id:
         title = f"New Assignment: {obj.title}"
-        body = f'A new assignment "{obj.title}" has been posted. Due: {_fmt_date(obj.due_date)}.'
+        body = f"New Assignment: {obj.title} | {subject_name} - {class_name}. Due: {_fmt_date(obj.due_date)}."
         create_system_announcement(db, current_user.id, title, body, class_id)
         notify_class_students(
             db, class_id, title, body,

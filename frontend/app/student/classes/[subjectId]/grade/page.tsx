@@ -125,7 +125,8 @@ export default function GradePage() {
                                 <YAxis domain={[0, 100]} />
                                 <Tooltip
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    formatter={(value: number | undefined) => [value != null ? `${value.toFixed(1)}%` : '', 'Score']}
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    formatter={(value: any) => [value != null ? `${(value as number).toFixed(1)}%` : '', 'Score']}
                                 />
                                 <Bar dataKey="percentage" radius={[4, 4, 0, 0]} barSize={40}>
                                     {gradesData.map((entry, index) => (

@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from app.config import settings
 from app.routers import (
     auth, users, classes, subjects, class_subjects,
@@ -21,6 +22,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def force_https_redirects(request: Request, call_next):
+    response = await call_next(request)
+    if response.status_code in (301, 302, 307, 308):
+        location = response.headers.get("location", "")
+        if location.startswith("http://"):
+            response.headers["location"] = "https://" + location[7:]
+    return response
 
 app.include_router(auth.router)
 app.include_router(users.router)

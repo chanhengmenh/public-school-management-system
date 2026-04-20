@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   Loader2, AlertCircle, ChevronLeft, CheckCircle2,
   Clock, MessageSquare, FileText, Image, File, Download,
+  ChevronRight, User as UserIcon,
 } from 'lucide-react';
 import { assignmentsApi, submissionsApi, gradesApi, classSubjectsApi, client } from '@/lib/api';
 import { fetchFileAsBlob } from '@/lib/api/files';
@@ -13,7 +14,7 @@ import { Grade } from '@/lib/api/grades';
 import { Assignment, Submission, SubmissionFile } from '@/types/school.types';
 import { User } from '@/types/user.types';
 
-// ─── Inline file viewer (same pattern as student homework page) ─────────────
+// ─── File viewer ─────────────────────────────────────────────────────────────
 function FileTypeIcon({ mime }: { mime?: string }) {
   if (mime?.startsWith('image/')) return <Image className="w-4 h-4 text-purple-500" />;
   if (mime === 'application/pdf') return <FileText className="w-4 h-4 text-red-500" />;
@@ -56,17 +57,14 @@ function FileViewer({ file }: { file: SubmissionFile }) {
     <iframe src={blobUrl} title={name} className="w-full h-64 rounded-lg border border-slate-100" />
   );
   return (
-    <a
-      href={blobUrl}
-      download={name}
-      className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-    >
+    <a href={blobUrl} download={name}
+      className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors">
       <Download className="w-4 h-4" /> Download {name}
     </a>
   );
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: Assignment['status'] }) {
   const map: Record<Assignment['status'], string> = {
     draft: 'bg-slate-100 text-slate-600',
@@ -87,15 +85,41 @@ function SubmissionTypeBadge({ type }: { type: string }) {
     both: 'bg-teal-50 text-teal-700 border-teal-200',
   };
   const labels: Record<string, string> = { text: 'Text', file: 'File', both: 'Text + File' };
-  const cls = map[type] ?? map.text;
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${map[type] ?? map.text}`}>
       {labels[type] ?? type}
     </span>
   );
 }
 
-interface GradeFormState { score: string; feedback: string; }
+type StudentStatus = 'graded' | 'pending' | 'no_submission';
+
+function studentStatus(studentId: number, subsMap: Record<number, Submission>, gradesMap: Record<number, Grade>): StudentStatus {
+  const sub = subsMap[studentId];
+  if (!sub) return 'no_submission';
+  if (gradesMap[sub.id]) return 'graded';
+  return 'pending';
+}
+
+function StatusChip({ status }: { status: StudentStatus }) {
+  if (status === 'graded') return (
+    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+      <CheckCircle2 className="w-3.5 h-3.5" /> Graded
+    </span>
+  );
+  if (status === 'pending') return (
+    <span className="flex items-center gap-1 text-xs font-medium text-orange-500">
+      <FileText className="w-3.5 h-3.5" /> Pending
+    </span>
+  );
+  return (
+    <span className="text-xs font-medium text-slate-400">No submission</span>
+  );
+}
+
+function initials(name: string) {
+  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+}
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 export default function TeacherSubmissionsPage() {
@@ -104,20 +128,17 @@ export default function TeacherSubmissionsPage() {
   const assignmentId = parseInt(params.assignmentId as string, 10);
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [studentMap, setStudentMap] = useState<Map<number, string>>(new Map());
+  const [students, setStudents] = useState<User[]>([]);
+  const [subsMap, setSubsMap] = useState<Record<number, Submission>>({});
+  const [gradesMap, setGradesMap] = useState<Record<number, Grade>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Expanded text state: submission ids where content is fully shown
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-
-  // Grading state
-  const [gradingId, setGradingId] = useState<number | null>(null);
-  const [gradeForm, setGradeForm] = useState<GradeFormState>({ score: '', feedback: '' });
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [gradeForm, setGradeForm] = useState({ score: '', feedback: '' });
   const [gradeFormError, setGradeFormError] = useState<string | null>(null);
   const [submittingGrade, setSubmittingGrade] = useState(false);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -129,15 +150,20 @@ export default function TeacherSubmissionsPage() {
         gradesApi.list({ assignment_id: assignmentId }),
         classSubjectsApi.getById(subjectId),
       ]);
-      const classId = cs.class_id;
-      const students = await client.get<User[]>(`/classes/${classId}/students`);
+      const allStudents = await client.get<User[]>(`/classes/${cs.class_id}/students`);
 
       setAssignment(asgn);
-      setSubmissions(subs);
-      setGrades(gradesData);
-      const map = new Map<number, string>();
-      students.forEach((s: User) => map.set(s.id, s.full_name));
-      setStudentMap(map);
+      setStudents(allStudents);
+
+      const sm: Record<number, Submission> = {};
+      subs.forEach((s: Submission) => { sm[s.student_id] = s; });
+      setSubsMap(sm);
+
+      const gm: Record<number, Grade> = {};
+      gradesData.forEach((g: Grade) => { gm[g.submission_id] = g; });
+      setGradesMap(gm);
+
+      if (allStudents.length > 0) setSelectedStudentId(allStudents[0].id);
     } catch {
       setError('Failed to load submissions. Please try again.');
     } finally {
@@ -147,49 +173,60 @@ export default function TeacherSubmissionsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const getGrade = (submissionId: number): Grade | undefined =>
-    grades.find(g => g.submission_id === submissionId);
-
-  const openGradeForm = (sub: Submission) => {
-    const existing = getGrade(sub.id);
-    setGradingId(sub.id);
+  // Sync grade form when selected student changes
+  useEffect(() => {
+    if (selectedStudentId === null) return;
+    const sub = subsMap[selectedStudentId];
+    if (!sub) { setGradeForm({ score: '', feedback: '' }); return; }
+    const grade = gradesMap[sub.id];
     setGradeForm({
-      score: existing ? String(existing.score) : '',
-      feedback: existing?.feedback ?? '',
+      score: grade ? String(grade.score) : '',
+      feedback: grade?.feedback ?? '',
     });
     setGradeFormError(null);
-  };
+  }, [selectedStudentId, subsMap, gradesMap]);
 
-  const handleGradeSubmit = async (sub: Submission) => {
+  const handleSave = async (andNext: boolean) => {
     setGradeFormError(null);
+    if (!assignment || selectedStudentId === null) return;
+    const sub = subsMap[selectedStudentId];
+    if (!sub) return;
+
     const scoreNum = parseFloat(gradeForm.score);
     if (isNaN(scoreNum) || scoreNum < 0) {
       setGradeFormError('Score must be a non-negative number.');
       return;
     }
-    if (assignment && scoreNum > assignment.max_score) {
+    if (scoreNum > assignment.max_score) {
       setGradeFormError(`Score cannot exceed max score (${assignment.max_score}).`);
       return;
     }
     setSubmittingGrade(true);
     try {
-      const existing = getGrade(sub.id);
+      const existing = gradesMap[sub.id];
       let result: Grade;
       if (existing) {
         result = await gradesApi.update(existing.id, {
           score: scoreNum,
           feedback: gradeForm.feedback.trim() || undefined,
         });
-        setGrades(prev => prev.map(g => g.id === existing.id ? result : g));
       } else {
         result = await gradesApi.create({
           submission_id: sub.id,
           score: scoreNum,
           feedback: gradeForm.feedback.trim() || undefined,
         });
-        setGrades(prev => [...prev, result]);
       }
-      setGradingId(null);
+      setGradesMap(prev => ({ ...prev, [sub.id]: result }));
+
+      if (andNext) {
+        const nextStudent = students.find(s => {
+          if (s.id === selectedStudentId) return false;
+          const nextSub = subsMap[s.id];
+          return nextSub && !gradesMap[nextSub.id] && nextSub.id !== sub.id;
+        });
+        if (nextStudent) setSelectedStudentId(nextStudent.id);
+      }
     } catch {
       setGradeFormError('Failed to save grade. Please try again.');
     } finally {
@@ -197,189 +234,171 @@ export default function TeacherSubmissionsPage() {
     }
   };
 
-  const gradedCount = submissions.filter(s => getGrade(s.id) !== undefined).length;
-  const pendingCount = submissions.length - gradedCount;
+  const gradedCount = students.filter(s => {
+    const sub = subsMap[s.id];
+    return sub && gradesMap[sub.id];
+  }).length;
+  const submittedCount = Object.keys(subsMap).length;
 
-  // ─── Loading / error ────────────────────────────────────────────────────────
   if (loading) return (
     <div className="flex justify-center py-16">
       <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
     </div>
   );
-
   if (error || !assignment) return (
     <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-500">
       <AlertCircle className="h-8 w-8 text-red-400" />
       <p>{error ?? 'Assignment not found.'}</p>
-      <button
-        onClick={loadData}
-        className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors"
-      >
+      <button onClick={loadData}
+        className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors">
         Retry
       </button>
     </div>
   );
 
+  const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null;
+  const selectedSub = selectedStudentId ? subsMap[selectedStudentId] ?? null : null;
+  const selectedGrade = selectedSub ? gradesMap[selectedSub.id] ?? null : null;
+
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-
-      {/* Back */}
-      <Link
-        href={`/teacher/classes/${subjectId}`}
-        className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Back to Assignments
-      </Link>
-
-      {/* Assignment header */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1 flex-wrap">
-              <h1 className="text-2xl font-bold text-slate-900">{assignment.title}</h1>
-              <StatusBadge status={assignment.status} />
-              <SubmissionTypeBadge type={assignment.submission_type} />
-            </div>
-            {assignment.description && (
-              <p className="text-slate-500 text-sm mt-1">{assignment.description}</p>
-            )}
-            <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-slate-500">
-              <span>
-                Max Score:{' '}
-                <span className="font-semibold text-slate-800">{assignment.max_score}</span>
-              </span>
-              {assignment.due_date && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  Due:{' '}
-                  <span className="font-semibold text-slate-800">
-                    {new Date(assignment.due_date).toLocaleString()}
-                  </span>
-                </span>
-              )}
-            </div>
-          </div>
+    <div className="flex flex-col h-full">
+      {/* Top bar */}
+      <div className="px-4 pt-4 pb-2 border-b border-slate-100 bg-white">
+        <Link href={`/teacher/classes/${subjectId}`}
+          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-2">
+          <ChevronLeft className="h-4 w-4" /> Back to Assignments
+        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-lg font-bold text-slate-900">{assignment.title}</h1>
+          <StatusBadge status={assignment.status} />
+          <SubmissionTypeBadge type={assignment.submission_type} />
+          <span className="text-sm text-slate-400">Max: <span className="font-semibold text-slate-700">{assignment.max_score}</span></span>
+          {assignment.due_date && (
+            <span className="flex items-center gap-1 text-sm text-slate-400">
+              <Clock className="h-3.5 w-3.5" />
+              {new Date(assignment.due_date).toLocaleString()}
+            </span>
+          )}
+          <span className="ml-auto text-sm text-slate-500">
+            <span className="font-semibold text-emerald-600">{gradedCount}</span>
+            <span className="text-slate-400">/{submittedCount} graded</span>
+          </span>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Total Submissions', value: submissions.length, color: 'text-slate-700', bg: 'bg-white' },
-          { label: 'Graded', value: gradedCount, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-          { label: 'Pending', value: pendingCount, color: 'text-orange-700', bg: 'bg-orange-50' },
-        ].map(stat => (
-          <div key={stat.label} className={`${stat.bg} border border-slate-200 rounded-2xl shadow-sm p-5 text-center`}>
-            <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-            <p className="text-sm text-slate-500 mt-1">{stat.label}</p>
-          </div>
-        ))}
+      {/* Mobile student strip */}
+      <div className="lg:hidden flex overflow-x-auto gap-2 px-3 py-2 border-b border-slate-100 bg-white">
+        {students.map(s => {
+          const status = studentStatus(s.id, subsMap, gradesMap);
+          const isActive = s.id === selectedStudentId;
+          return (
+            <button key={s.id} onClick={() => setSelectedStudentId(s.id)}
+              className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors
+                ${isActive ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <span>{initials(s.full_name)}</span>
+              {status === 'graded' && <span className={isActive ? 'text-orange-100' : 'text-emerald-500'}>✓</span>}
+              {status === 'pending' && <span className={isActive ? 'text-orange-100' : 'text-orange-400'}>●</span>}
+              {status === 'no_submission' && <span className={isActive ? 'text-orange-200' : 'text-slate-300'}>○</span>}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Submissions list */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="font-bold text-slate-900">Student Submissions</h2>
-        </div>
-
-        {submissions.length === 0 ? (
-          <div className="px-6 py-10 text-center text-slate-400 text-sm">
-            No submissions yet for this assignment.
+      {/* Split pane */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex flex-col w-60 border-r border-slate-100 bg-white overflow-y-auto">
+          <div className="px-4 py-3 border-b border-slate-50">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Students ({students.length})
+            </p>
           </div>
-        ) : (
-          <div className="divide-y divide-slate-50">
-            {submissions.map(sub => {
-              const grade = getGrade(sub.id);
-              const isGrading = gradingId === sub.id;
-              const studentName = studentMap.get(sub.student_id) ?? `Student #${sub.student_id}`;
-              const isExpanded = expanded.has(sub.id);
-              const contentTruncated = sub.content && sub.content.length > 200;
-              const displayContent = sub.content
-                ? (isExpanded || !contentTruncated ? sub.content : sub.content.slice(0, 200) + '…')
-                : null;
+          {students.map(s => {
+            const status = studentStatus(s.id, subsMap, gradesMap);
+            const isActive = s.id === selectedStudentId;
+            return (
+              <button key={s.id} onClick={() => setSelectedStudentId(s.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-l-2
+                  ${isActive
+                    ? 'bg-orange-50 border-l-orange-500'
+                    : 'border-l-transparent hover:bg-slate-50'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0
+                  ${isActive ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  {initials(s.full_name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium truncate ${isActive ? 'text-orange-700' : 'text-slate-800'}`}>
+                    {s.full_name}
+                  </p>
+                  <StatusChip status={status} />
+                </div>
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
+              </button>
+            );
+          })}
+        </aside>
 
-              return (
-                <div key={sub.id} className="px-6 py-5 space-y-3">
-                  {/* Row header */}
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className="font-semibold text-slate-800">{studentName}</span>
-                        {sub.is_late && (
-                          <span className="px-2 py-0.5 bg-red-50 text-red-600 text-xs font-semibold rounded-full">
-                            LATE
-                          </span>
-                        )}
-                        <SubmissionTypeBadge type={sub.submission_type} />
-                        <span className="text-xs text-slate-400">
-                          {new Date(sub.submitted_at).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
+        {/* Main workspace */}
+        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+          {!selectedStudent ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <UserIcon className="h-10 w-10 mb-2" />
+              <p className="text-sm">Select a student to begin grading.</p>
+            </div>
+          ) : (
+            <>
+              {/* Student header */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-sm">
+                  {initials(selectedStudent.full_name)}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">{selectedStudent.full_name}</h2>
+                  <StatusChip status={studentStatus(selectedStudent.id, subsMap, gradesMap)} />
+                </div>
+              </div>
 
-                    {/* Grade display / button */}
-                    <div className="shrink-0">
-                      {grade && !isGrading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="text-right">
-                            <div className="flex items-center gap-1.5 justify-end">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              <span className="font-bold text-slate-800 text-lg">
-                                {grade.score}
-                                <span className="text-sm font-normal text-slate-400">/{assignment.max_score}</span>
-                              </span>
-                            </div>
-                            {grade.feedback && (
-                              <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5 justify-end">
-                                <MessageSquare className="h-3 w-3" /> Has feedback
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => openGradeForm(sub)}
-                            className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      ) : !isGrading ? (
-                        <button
-                          onClick={() => openGradeForm(sub)}
-                          className="px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-xl hover:bg-orange-600 transition-colors"
-                        >
-                          Grade
-                        </button>
-                      ) : null}
-                    </div>
+              {/* Submission content */}
+              {!selectedSub ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl px-6 py-10 text-center text-slate-400 text-sm">
+                  This student has not submitted yet.
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    <SubmissionTypeBadge type={selectedSub.submission_type} />
+                    {selectedSub.is_late && (
+                      <span className="px-2 py-0.5 bg-red-50 text-red-600 text-xs font-semibold rounded-full">LATE</span>
+                    )}
+                    <span>{new Date(selectedSub.submitted_at).toLocaleString()}</span>
                   </div>
 
                   {/* Text content */}
-                  {displayContent && (
-                    <div>
-                      <p className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2 whitespace-pre-wrap">
-                        {displayContent}
-                      </p>
-                      {contentTruncated && (
-                        <button
-                          onClick={() => setExpanded(prev => {
-                            const next = new Set(prev);
-                            isExpanded ? next.delete(sub.id) : next.add(sub.id);
-                            return next;
-                          })}
-                          className="mt-1 text-xs text-orange-600 hover:underline"
-                        >
-                          {isExpanded ? 'Show less' : 'Show more'}
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  {selectedSub.content && (() => {
+                    const isExp = expanded.has(selectedSub.id);
+                    const long = selectedSub.content.length > 300;
+                    const text = long && !isExp ? selectedSub.content.slice(0, 300) + '…' : selectedSub.content;
+                    return (
+                      <div>
+                        <p className="text-sm text-slate-700 bg-slate-50 rounded-xl px-4 py-3 whitespace-pre-wrap">{text}</p>
+                        {long && (
+                          <button onClick={() => setExpanded(prev => {
+                            const n = new Set(prev);
+                            isExp ? n.delete(selectedSub.id) : n.add(selectedSub.id);
+                            return n;
+                          })} className="mt-1 text-xs text-orange-600 hover:underline">
+                            {isExp ? 'Show less' : 'Show more'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
 
-                  {/* Attached files */}
-                  {sub.files && sub.files.length > 0 && (
+                  {/* Files */}
+                  {selectedSub.files && selectedSub.files.length > 0 && (
                     <div className="space-y-3">
-                      {sub.files.map(f => (
+                      {selectedSub.files.map(f => (
                         <div key={f.id} className="space-y-1.5">
                           <div className="flex items-center gap-2 text-sm text-slate-700">
                             <FileTypeIcon mime={f.file_type} />
@@ -390,80 +409,84 @@ export default function TeacherSubmissionsPage() {
                       ))}
                     </div>
                   )}
-
-                  {/* Feedback display (when graded, not editing) */}
-                  {grade && !isGrading && grade.feedback && (
-                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
-                      <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide mb-1">Feedback</p>
-                      <p className="text-sm text-slate-700">{grade.feedback}</p>
-                    </div>
-                  )}
-
-                  {/* Inline grade form */}
-                  {isGrading && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                      <p className="text-sm font-semibold text-slate-700">
-                        {getGrade(sub.id) ? 'Update Grade' : 'Grade Submission'}
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">
-                            Score (0–{assignment.max_score}) <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={assignment.max_score}
-                            value={gradeForm.score}
-                            onChange={e => setGradeForm(prev => ({ ...prev, score: e.target.value }))}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                            placeholder={`0–${assignment.max_score}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">
-                            Feedback (optional)
-                          </label>
-                          <textarea
-                            value={gradeForm.feedback}
-                            onChange={e => setGradeForm(prev => ({ ...prev, feedback: e.target.value }))}
-                            rows={2}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
-                            placeholder="Optional feedback for the student"
-                          />
-                        </div>
-                      </div>
-                      {gradeFormError && (
-                        <p className="text-xs text-red-600 flex items-center gap-1">
-                          <AlertCircle className="h-3.5 w-3.5" /> {gradeFormError}
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleGradeSubmit(sub)}
-                          disabled={submittingGrade}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 disabled:opacity-60 transition-colors"
-                        >
-                          {submittingGrade
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <CheckCircle2 className="h-4 w-4" />}
-                          Save Grade
-                        </button>
-                        <button
-                          onClick={() => setGradingId(null)}
-                          disabled={submittingGrade}
-                          className="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50 disabled:opacity-60 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
+
+              {/* Grading panel */}
+              {selectedSub && (
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-slate-800">
+                      {selectedGrade ? 'Update Grade' : 'Grade Submission'}
+                    </h3>
+                    {selectedGrade && (
+                      <div className="flex items-center gap-1.5 text-emerald-600">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="text-sm font-semibold">
+                          {selectedGrade.score}/{assignment.max_score}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Feedback display (read mode) */}
+                  {selectedGrade?.feedback && (
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                      <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide mb-1 flex items-center gap-1">
+                        <MessageSquare className="w-3.5 h-3.5" /> Feedback
+                      </p>
+                      <p className="text-sm text-slate-700">{selectedGrade.feedback}</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Score (0–{assignment.max_score}) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number" min={0} max={assignment.max_score}
+                        value={gradeForm.score}
+                        onChange={e => setGradeForm(prev => ({ ...prev, score: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        placeholder={`0–${assignment.max_score}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Feedback (optional)</label>
+                      <textarea
+                        value={gradeForm.feedback}
+                        onChange={e => setGradeForm(prev => ({ ...prev, feedback: e.target.value }))}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                        placeholder="Optional feedback for the student"
+                      />
+                    </div>
+                  </div>
+
+                  {gradeFormError && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertCircle className="h-3.5 w-3.5" /> {gradeFormError}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button onClick={() => handleSave(false)} disabled={submittingGrade}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 disabled:opacity-60 transition-colors">
+                      {submittingGrade ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                      Save
+                    </button>
+                    <button onClick={() => handleSave(true)} disabled={submittingGrade}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-60 transition-colors">
+                      {submittingGrade ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
+                      Save &amp; Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </main>
       </div>
     </div>
   );

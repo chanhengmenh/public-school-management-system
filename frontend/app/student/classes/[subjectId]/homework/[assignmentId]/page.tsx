@@ -142,6 +142,7 @@ export default function AssignmentDetailPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [resubmitting, setResubmitting] = useState(false);
 
     const loadData = useCallback(async () => {
         if (!user) return;
@@ -228,6 +229,7 @@ export default function AssignmentDetailPage() {
             }
 
             setSubmitSuccess(true);
+            setResubmitting(false);
             setTextContent('');
             setSelectedFile(null);
         } catch (err: unknown) {
@@ -264,7 +266,9 @@ export default function AssignmentDetailPage() {
 
     const isClosed = assignment.status === 'closed';
     const isDraft = assignment.status === 'draft';
-    const canSubmit = assignment.status === 'published' && !submission;
+    const isPublished = assignment.status === 'published';
+    const canSubmit = isPublished && (!submission || resubmitting);
+    const canResubmit = isPublished && !!submission && !grade && !resubmitting;
 
     // ─── Render ──────────────────────────────────────────────────────────────
     return (
@@ -347,9 +351,10 @@ export default function AssignmentDetailPage() {
             )}
 
             {/* ── Already submitted: show content + grade ── */}
-            {submission ? (
+            {submission && !resubmitting ? (
                 <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                         <h2 className="font-bold text-slate-900">Your Submission</h2>
                         {submission.is_late && (
@@ -357,6 +362,16 @@ export default function AssignmentDetailPage() {
                                 LATE
                             </span>
                         )}
+                      </div>
+                      {canResubmit && (
+                        <button
+                          onClick={() => { setResubmitting(true); setSubmitSuccess(false); setTextContent(submission.content ?? ''); setSelectedFile(null); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          Resubmit
+                        </button>
+                      )}
                     </div>
 
                     <div>
@@ -441,7 +456,17 @@ export default function AssignmentDetailPage() {
             ) : canSubmit ? (
                 /* ── Submission form ── */
                 <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-5">
-                    <h2 className="font-bold text-slate-900">Submit Your Work</h2>
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-bold text-slate-900">{resubmitting ? 'Resubmit Your Work' : 'Submit Your Work'}</h2>
+                      {resubmitting && (
+                        <button
+                          onClick={() => { setResubmitting(false); setSubmitError(null); }}
+                          className="text-sm text-slate-500 hover:text-slate-700 underline"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
 
                     {/* Mode selector — only shown when assignment allows choice */}
                     {assignment.submission_type === 'both' ? (

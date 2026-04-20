@@ -8,6 +8,7 @@ export interface AuditLog {
   resource_type: string;
   resource_id: number | null;
   detail: string | null;
+  payload: { before?: Record<string, unknown>; after?: Record<string, unknown> } | null;
   created_at: string;
 }
 

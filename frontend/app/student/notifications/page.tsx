@@ -58,6 +58,8 @@ export default function NotificationsPage() {
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
+    const dispatchRefresh = () => window.dispatchEvent(new Event('notification:refresh'));
+
     const markAsRead = async (id: number) => {
         const notif = notifications.find(n => n.id === id);
         if (!notif || notif.is_read) return;
@@ -66,6 +68,7 @@ export default function NotificationsPage() {
             setNotifications(prev =>
                 prev.map(n => n.id === id ? { ...n, is_read: true } : n)
             );
+            dispatchRefresh();
         } catch {
             // Silently fail — user can retry
         }
@@ -77,6 +80,7 @@ export default function NotificationsPage() {
             setNotifications(prev =>
                 prev.map(n => ({ ...n, is_read: true }))
             );
+            dispatchRefresh();
         } catch {
             // Silently fail
         }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -20,6 +20,7 @@ import {
     LucideIcon
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
+import { notificationsApi } from '@/lib/api/notifications';
 
 interface MainSidebarProps {
     role?: string;
@@ -62,7 +63,7 @@ function getNavLinks(role: string | undefined, isClassMonitor: boolean, isHomeTe
         { name: 'Dashboard', href: '/student', icon: LayoutDashboard },
         { name: 'Classes', href: '/student/classes', icon: BookOpen },
         { name: 'Schedule', href: '/student/schedule', icon: Calendar },
-        { name: 'Notifications', href: '/student/notifications', icon: Bell, badge: 4 },
+        { name: 'Notifications', href: '/student/notifications', icon: Bell },
     ];
     if (isClassMonitor) {
         main.push({ name: 'Attendance', href: '/student/attendance', icon: ClipboardCheck });
@@ -77,6 +78,23 @@ export default function MainSidebar({ role }: MainSidebarProps) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    const effectiveRole = role ?? user?.role;
+
+    useEffect(() => {
+        if (effectiveRole !== 'student') return;
+        const fetchCount = async () => {
+            try {
+                const data = await notificationsApi.unreadCount();
+                setUnreadCount(data.count);
+            } catch { /* non-critical */ }
+        };
+        fetchCount();
+        const handler = () => fetchCount();
+        window.addEventListener('notification:refresh', handler);
+        return () => window.removeEventListener('notification:refresh', handler);
+    }, [effectiveRole]);
 
     const handleLogout = () => {
         if (window.confirm('Are you sure you want to log out?')) {
@@ -84,7 +102,6 @@ export default function MainSidebar({ role }: MainSidebarProps) {
         }
     };
 
-    const effectiveRole = role ?? user?.role;
     const { main: mainMenuLinks, account: accountLinks } = getNavLinks(
         effectiveRole,
         !!user?.is_class_monitor,
@@ -95,6 +112,7 @@ export default function MainSidebar({ role }: MainSidebarProps) {
         return links.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/teacher' && item.href !== '/student' && item.href !== '/admin' && pathname.startsWith(item.href));
             const Icon = item.icon;
+            const liveCount = item.href === '/student/notifications' ? unreadCount : 0;
 
             return (
                 <Link
@@ -112,7 +130,7 @@ export default function MainSidebar({ role }: MainSidebarProps) {
                             }`}>
                             <Icon className="h-5 w-5" />
                         </div>
-                        {isCollapsed && item.badge && (
+                        {isCollapsed && liveCount > 0 && (
                             <span className="absolute -top-1 -right-1 flex h-3 w-3">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-[#0f172a]"></span>
@@ -123,9 +141,9 @@ export default function MainSidebar({ role }: MainSidebarProps) {
                     {!isCollapsed && (
                         <>
                             <span className={`ml-3 text-sm font-medium whitespace-nowrap ${isActive ? 'text-orange-500' : ''}`}>{item.name}</span>
-                            {item.badge && (
+                            {liveCount > 0 && (
                                 <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                                    {item.badge}
+                                    {liveCount}
                                 </span>
                             )}
                         </>
