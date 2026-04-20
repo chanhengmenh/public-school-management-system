@@ -224,17 +224,14 @@ export default function AssignmentDetailPage() {
             // 2. Upload file if needed
             if ((mode === 'file' || mode === 'both') && selectedFile) {
                 await filesApi.uploadSubmissionFile(created.id, selectedFile);
-                // Re-fetch to get the files array populated
-                const refreshed = await submissionsApi.getById(created.id);
-                setSubmission(refreshed);
-            } else {
-                setSubmission(created);
             }
 
             setSubmitSuccess(true);
             setResubmitting(false);
             setTextContent('');
             setSelectedFile(null);
+            setGrade(null);
+            await loadData(); // refresh submission + attemptCount
         } catch (err: unknown) {
             const apiErr = err as { data?: { detail?: string } };
             setSubmitError(apiErr?.data?.detail ?? 'Failed to submit. Please try again.');
@@ -318,14 +315,14 @@ export default function AssignmentDetailPage() {
                             </span>
                         </span>
                     )}
-                    {assignment.max_attempts != null && (
+                    {attemptCount > 0 && (
                         <span className={`flex items-center gap-1 ${attemptsRemaining === 0 ? 'text-red-500' : ''}`}>
                             Attempts:{' '}
                             <span className="font-semibold text-slate-800">
-                                {attemptCount} / {assignment.max_attempts}
+                                {attemptCount}{assignment.max_attempts != null ? ` / ${assignment.max_attempts}` : ''}
                             </span>
                             {attemptsRemaining === 0 && (
-                                <span className="text-xs text-red-500 font-medium">(no attempts left)</span>
+                                <span className="text-xs text-red-500 font-medium ml-1">(no attempts left)</span>
                             )}
                         </span>
                     )}
