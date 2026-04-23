@@ -5,7 +5,9 @@ from app.dependencies import get_db, get_current_user
 from app.models.user import UserRole, User
 from app.models.assignment import Assignment, AssignmentStatus
 from app.models.submission import AssignmentSubmission
+from app.models.submission_telemetry import SubmissionTelemetry
 from app.schemas.submission import SubmissionCreate, SubmissionRead
+from app.schemas.submission_telemetry import TelemetryCreate, TelemetryRead
 from app.core.permissions import require_roles
 from app.core.exceptions import NotFoundError, ForbiddenError
 
@@ -84,3 +86,52 @@ def get_submission(submission_id: int, db: Session = Depends(get_db),
     if current_user.role == UserRole.student and obj.student_id != current_user.id:
         raise ForbiddenError()
     return obj
+
+
+@router.post("/{submission_id}/telemetry", response_model=TelemetryRead,
+             dependencies=[Depends(require_roles(UserRole.student))])
+def save_telemetry(submission_id: int, data: TelemetryCreate,
+                   db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
+    sub = db.query(AssignmentSubmission).filter(AssignmentSubmission.id == submission_id).first()
+    if not sub:
+        raise NotFoundError("Submission not found")
+    if sub.student_id != current_user.id:
+        raise ForbiddenError()
+
+    existing = db.query(SubmissionTelemetry).filter(
+        SubmissionTelemetry.submission_id == submission_id
+    ).first()
+    if existing:
+        for k, v in data.model_dump().items():
+            setattr(existing, k, v)
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    obj = SubmissionTelemetry(
+        submission_id=submission_id,
+        student_id=current_user.id,
+        **data.model_dump(),
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.get("/{submission_id}/telemetry", response_model=TelemetryRead)
+def get_telemetry(submission_id: int, db: Session = Depends(get_db),
+                  current_user: User = Depends(get_current_user)):
+    sub = db.query(AssignmentSubmission).filter(AssignmentSubmission.id == submission_id).first()
+    if not sub:
+        raise NotFoundError("Submission not found")
+    if current_user.role == UserRole.student and sub.student_id != current_user.id:
+        raise ForbiddenError()
+
+    telemetry = db.query(SubmissionTelemetry).filter(
+        SubmissionTelemetry.submission_id == submission_id
+    ).first()
+    if not telemetry:
+        raise NotFoundError("No telemetry recorded for this submission")
+    return telemetry

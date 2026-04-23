@@ -6,10 +6,12 @@ import Link from 'next/link';
 import {
   Loader2, AlertCircle, ChevronLeft, CheckCircle2,
   Clock, MessageSquare, FileText, Image, File, Download,
-  ChevronRight, User as UserIcon,
+  ChevronRight, User as UserIcon, Keyboard, ClipboardPaste,
+  ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { assignmentsApi, submissionsApi, gradesApi, classSubjectsApi, client } from '@/lib/api';
 import { fetchFileAsBlob } from '@/lib/api/files';
+import { TelemetryRead } from '@/lib/api/submissions';
 import { Grade } from '@/lib/api/grades';
 import { Assignment, Submission, SubmissionFile } from '@/types/school.types';
 import { User } from '@/types/user.types';
@@ -61,6 +63,97 @@ function FileViewer({ file }: { file: SubmissionFile }) {
       className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors">
       <Download className="w-4 h-4" /> Download {name}
     </a>
+  );
+}
+
+// ─── Telemetry panel ─────────────────────────────────────────────────────────
+function TelemetryPanel({ submissionId }: { submissionId: number }) {
+  const [telemetry, setTelemetry] = useState<TelemetryRead | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    setMissing(false);
+    setTelemetry(null);
+    submissionsApi.getTelemetry(submissionId)
+      .then(setTelemetry)
+      .catch(() => setMissing(true))
+      .finally(() => setLoading(false));
+  }, [submissionId]);
+
+  if (loading) return (
+    <div className="flex items-center gap-2 text-slate-400 text-xs py-2">
+      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading telemetry…
+    </div>
+  );
+
+  if (missing || !telemetry) return (
+    <p className="text-xs text-slate-400 italic">No typing data recorded for this submission.</p>
+  );
+
+  const total = telemetry.typed_chars + telemetry.pasted_chars;
+  const pasteRatio = total > 0 ? telemetry.pasted_chars / total : 0;
+  const suspicious = telemetry.paste_count > 0 && pasteRatio > 0.5;
+
+  return (
+    <div className="space-y-3">
+      {/* Suspicion flag */}
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold ${
+        suspicious
+          ? 'bg-red-50 text-red-700 border border-red-200'
+          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+      }`}>
+        {suspicious
+          ? <><ShieldAlert className="w-4 h-4 shrink-0" /> High paste ratio — possible copy-paste</>
+          : <><ShieldCheck className="w-4 h-4 shrink-0" /> Mostly typed manually</>
+        }
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="bg-slate-50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-1.5 text-slate-500 mb-0.5">
+            <Keyboard className="w-3.5 h-3.5" /> Avg speed
+          </div>
+          <p className="font-bold text-slate-800 text-base">
+            {telemetry.avg_wpm != null ? `${telemetry.avg_wpm} WPM` : '—'}
+          </p>
+        </div>
+
+        <div className="bg-slate-50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-1.5 text-slate-500 mb-0.5">
+            <Clock className="w-3.5 h-3.5" /> Active typing
+          </div>
+          <p className="font-bold text-slate-800 text-base">
+            {telemetry.active_typing_seconds >= 60
+              ? `${Math.floor(telemetry.active_typing_seconds / 60)}m ${Math.round(telemetry.active_typing_seconds % 60)}s`
+              : `${Math.round(telemetry.active_typing_seconds)}s`}
+          </p>
+        </div>
+
+        <div className="bg-slate-50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-1.5 text-slate-500 mb-0.5">
+            <Keyboard className="w-3.5 h-3.5" /> Typed chars
+          </div>
+          <p className="font-bold text-slate-800 text-base">{telemetry.typed_chars}</p>
+        </div>
+
+        <div className={`rounded-lg px-3 py-2 ${telemetry.paste_count > 0 ? 'bg-orange-50' : 'bg-slate-50'}`}>
+          <div className={`flex items-center gap-1.5 mb-0.5 ${telemetry.paste_count > 0 ? 'text-orange-600' : 'text-slate-500'}`}>
+            <ClipboardPaste className="w-3.5 h-3.5" /> Paste events
+          </div>
+          <p className={`font-bold text-base ${telemetry.paste_count > 0 ? 'text-orange-700' : 'text-slate-800'}`}>
+            {telemetry.paste_count}
+            {telemetry.paste_count > 0 && (
+              <span className="text-xs font-normal ml-1 text-orange-500">
+                ({telemetry.pasted_chars} chars, {Math.round(pasteRatio * 100)}%)
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -139,6 +232,7 @@ export default function TeacherSubmissionsPage() {
   const [gradeFormError, setGradeFormError] = useState<string | null>(null);
   const [submittingGrade, setSubmittingGrade] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [showTelemetry, setShowTelemetry] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -173,7 +267,6 @@ export default function TeacherSubmissionsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Sync grade form when selected student changes
   useEffect(() => {
     if (selectedStudentId === null) return;
     const sub = subsMap[selectedStudentId];
@@ -184,6 +277,7 @@ export default function TeacherSubmissionsPage() {
       feedback: grade?.feedback ?? '',
     });
     setGradeFormError(null);
+    setShowTelemetry(false);
   }, [selectedStudentId, subsMap, gradesMap]);
 
   const handleSave = async (andNext: boolean) => {
@@ -260,7 +354,6 @@ export default function TeacherSubmissionsPage() {
   const selectedSub = selectedStudentId ? subsMap[selectedStudentId] ?? null : null;
   const selectedGrade = selectedSub ? gradesMap[selectedSub.id] ?? null : null;
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -409,6 +502,24 @@ export default function TeacherSubmissionsPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* Telemetry toggle */}
+                  {(selectedSub.submission_type === 'text' || selectedSub.submission_type === 'both') && (
+                    <div className="border-t border-slate-100 pt-3">
+                      <button
+                        onClick={() => setShowTelemetry(v => !v)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        <Keyboard className="w-3.5 h-3.5" />
+                        {showTelemetry ? 'Hide' : 'Show'} typing analysis
+                      </button>
+                      {showTelemetry && (
+                        <div className="mt-3">
+                          <TelemetryPanel submissionId={selectedSub.id} />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -429,7 +540,6 @@ export default function TeacherSubmissionsPage() {
                     )}
                   </div>
 
-                  {/* Feedback display (read mode) */}
                   {selectedGrade?.feedback && (
                     <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
                       <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide mb-1 flex items-center gap-1">

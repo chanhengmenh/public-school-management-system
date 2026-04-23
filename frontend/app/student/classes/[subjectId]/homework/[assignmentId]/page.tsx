@@ -84,7 +84,6 @@ function FileViewer({ file }: { file: SubmissionFile }) {
         );
     }
 
-    // Other types — download link
     return (
         <a
             href={blobUrl}
@@ -119,6 +118,92 @@ function StatusBadge({ status }: { status: Assignment['status'] }) {
     );
 }
 
+// ─── Telemetry tracking hook ─────────────────────────────────────────────────
+function useTelemetry() {
+    const state = useRef({
+        typed_chars: 0,
+        paste_count: 0,
+        pasted_chars: 0,
+        keystroke_count: 0,
+        active_typing_ms: 0,
+        windowStart: null as number | null,
+        isPasting: false,
+        prevLength: 0,
+    });
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const closeWindow = useCallback(() => {
+        const t = state.current;
+        if (t.windowStart !== null) {
+            t.active_typing_ms += Date.now() - t.windowStart;
+            t.windowStart = null;
+        }
+    }, []);
+
+    const reset = useCallback(() => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        state.current = {
+            typed_chars: 0,
+            paste_count: 0,
+            pasted_chars: 0,
+            keystroke_count: 0,
+            active_typing_ms: 0,
+            windowStart: null,
+            isPasting: false,
+            prevLength: 0,
+        };
+    }, []);
+
+    const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (['Control', 'Alt', 'Shift', 'Meta', 'CapsLock'].includes(e.key)) return;
+        const t = state.current;
+        t.keystroke_count++;
+        if (t.windowStart === null) t.windowStart = Date.now();
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(closeWindow, 2000);
+    }, [closeWindow]);
+
+    const onPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const t = state.current;
+        t.paste_count++;
+        t.isPasting = true;
+        const pasted = e.clipboardData.getData('text') ?? '';
+        t.pasted_chars += pasted.length;
+    }, []);
+
+    const onChange = useCallback((
+        e: React.ChangeEvent<HTMLTextAreaElement>,
+        setter: (v: string) => void,
+    ) => {
+        const t = state.current;
+        const newLen = e.target.value.length;
+        const delta = newLen - t.prevLength;
+        if (!t.isPasting && delta > 0) t.typed_chars += delta;
+        t.isPasting = false;
+        t.prevLength = newLen;
+        setter(e.target.value);
+    }, []);
+
+    const collect = useCallback(() => {
+        closeWindow();
+        const t = state.current;
+        const active_typing_seconds = t.active_typing_ms / 1000;
+        const avg_wpm = active_typing_seconds > 5
+            ? Math.round((t.typed_chars / 5) / (active_typing_seconds / 60))
+            : null;
+        return {
+            typed_chars: t.typed_chars,
+            paste_count: t.paste_count,
+            pasted_chars: t.pasted_chars,
+            keystroke_count: t.keystroke_count,
+            active_typing_seconds,
+            avg_wpm,
+        };
+    }, [closeWindow]);
+
+    return { onKeyDown, onPaste, onChange, collect, reset };
+}
+
 // ─── Main page ───────────────────────────────────────────────────────────────
 export default function AssignmentDetailPage() {
     const params = useParams();
@@ -133,7 +218,6 @@ export default function AssignmentDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Submission form state
     const [mode, setMode] = useState<SubmissionMode>('text');
     const [textContent, setTextContent] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -145,6 +229,8 @@ export default function AssignmentDetailPage() {
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [resubmitting, setResubmitting] = useState(false);
 
+    const telemetry = useTelemetry();
+
     const loadData = useCallback(async () => {
         if (!user) return;
         setLoading(true);
@@ -155,10 +241,8 @@ export default function AssignmentDetailPage() {
                 submissionsApi.list({ assignment_id: assignmentId }),
             ]);
             setAssignment(asgn);
-            // Lock submission mode to the assignment's required type
             setMode(asgn.submission_type as SubmissionMode);
 
-            // Use the latest submission; track total attempt count
             const existing = subs.length > 0 ? subs[subs.length - 1] : null;
             setAttemptCount(subs.length);
             setSubmission(existing);
@@ -181,7 +265,6 @@ export default function AssignmentDetailPage() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    // ── File selection helpers ───────────────────────────────────────────────
     const handleFileSelect = (file: File) => {
         if (!ACCEPTED_MIME.includes(file.type)) {
             setSubmitError('File type not allowed. Accepted: PDF, Word, Excel, images, plain text.');
@@ -198,7 +281,6 @@ export default function AssignmentDetailPage() {
         if (file) handleFileSelect(file);
     };
 
-    // ── Submit handler ───────────────────────────────────────────────────────
     const handleSubmit = async () => {
         if (!assignment || !user) return;
         setSubmitError(null);
@@ -214,16 +296,23 @@ export default function AssignmentDetailPage() {
 
         setSubmitting(true);
         try {
-            // 1. Create the submission record
             const created = await submissionsApi.create({
                 assignment_id: assignment.id,
                 content: (mode === 'text' || mode === 'both') ? textContent.trim() : undefined,
                 submission_type: mode,
             });
 
-            // 2. Upload file if needed
             if ((mode === 'file' || mode === 'both') && selectedFile) {
                 await filesApi.uploadSubmissionFile(created.id, selectedFile);
+            }
+
+            // Send telemetry only when text was typed (file-only submissions have nothing to track)
+            if (mode === 'text' || mode === 'both') {
+                try {
+                    await submissionsApi.saveTelemetry(created.id, telemetry.collect());
+                } catch {
+                    // telemetry failure is non-blocking
+                }
             }
 
             setSubmitSuccess(true);
@@ -231,7 +320,8 @@ export default function AssignmentDetailPage() {
             setTextContent('');
             setSelectedFile(null);
             setGrade(null);
-            await loadData(); // refresh submission + attemptCount
+            telemetry.reset();
+            await loadData();
         } catch (err: unknown) {
             const apiErr = err as { data?: { detail?: string } };
             setSubmitError(apiErr?.data?.detail ?? 'Failed to submit. Please try again.');
@@ -240,7 +330,6 @@ export default function AssignmentDetailPage() {
         }
     };
 
-    // ─── Loading / Error states ──────────────────────────────────────────────
     if (loading) {
         return (
             <div className="flex justify-center py-16">
@@ -269,15 +358,13 @@ export default function AssignmentDetailPage() {
     const isPublished = assignment.status === 'published';
     const attemptsRemaining = assignment.max_attempts != null
         ? assignment.max_attempts - attemptCount
-        : null; // null = unlimited
+        : null;
     const hasAttemptsLeft = attemptsRemaining === null || attemptsRemaining > 0;
     const canSubmit = isPublished && (!submission || resubmitting);
     const canResubmit = isPublished && !!submission && !grade && !resubmitting && hasAttemptsLeft;
 
-    // ─── Render ──────────────────────────────────────────────────────────────
     return (
         <div className="max-w-3xl mx-auto space-y-6">
-            {/* Back */}
             <Link
                 href={`/student/classes/${subjectId}/homework`}
                 className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors"
@@ -380,7 +467,13 @@ export default function AssignmentDetailPage() {
                       </div>
                       {canResubmit && (
                         <button
-                          onClick={() => { setResubmitting(true); setSubmitSuccess(false); setTextContent(submission.content ?? ''); setSelectedFile(null); }}
+                          onClick={() => {
+                              setResubmitting(true);
+                              setSubmitSuccess(false);
+                              setTextContent(submission.content ?? '');
+                              setSelectedFile(null);
+                              telemetry.reset();
+                          }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors"
                         >
                           <Send className="h-3.5 w-3.5" />
@@ -398,7 +491,6 @@ export default function AssignmentDetailPage() {
                         </p>
                     </div>
 
-                    {/* Text content */}
                     {submission.content && (
                         <div>
                             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
@@ -410,7 +502,6 @@ export default function AssignmentDetailPage() {
                         </div>
                     )}
 
-                    {/* Attached files */}
                     {submission.files && submission.files.length > 0 && (
                         <div>
                             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">
@@ -430,7 +521,6 @@ export default function AssignmentDetailPage() {
                         </div>
                     )}
 
-                    {/* Grade */}
                     {grade ? (
                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
                             <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide mb-2">Grade</p>
@@ -483,7 +573,6 @@ export default function AssignmentDetailPage() {
                       )}
                     </div>
 
-                    {/* Mode selector — only shown when assignment allows choice */}
                     {assignment.submission_type === 'both' ? (
                         <div>
                             <p className="text-sm font-medium text-slate-700 mb-2">Submission type</p>
@@ -512,7 +601,6 @@ export default function AssignmentDetailPage() {
                         </div>
                     ) : null}
 
-                    {/* Text area */}
                     {(mode === 'text' || mode === 'both') && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -520,7 +608,9 @@ export default function AssignmentDetailPage() {
                             </label>
                             <textarea
                                 value={textContent}
-                                onChange={e => setTextContent(e.target.value)}
+                                onKeyDown={telemetry.onKeyDown}
+                                onPaste={telemetry.onPaste}
+                                onChange={e => telemetry.onChange(e, setTextContent)}
                                 rows={8}
                                 placeholder="Write your answer here…"
                                 className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
@@ -528,7 +618,6 @@ export default function AssignmentDetailPage() {
                         </div>
                     )}
 
-                    {/* File drop zone */}
                     {(mode === 'file' || mode === 'both') && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -591,7 +680,6 @@ export default function AssignmentDetailPage() {
                         </div>
                     )}
 
-                    {/* Error */}
                     {submitError && (
                         <p className="text-sm text-red-600 flex items-center gap-1">
                             <AlertCircle className="h-4 w-4 shrink-0" />
@@ -599,7 +687,6 @@ export default function AssignmentDetailPage() {
                         </p>
                     )}
 
-                    {/* Submit button */}
                     <div className="flex justify-end">
                         <button
                             onClick={handleSubmit}

@@ -20,3 +20,4 @@ class AssignmentSubmission(Base):
     files = relationship("SubmissionFile", back_populates="submission")
     behavior_logs = relationship("BehaviorLog", back_populates="submission")
     grade = relationship("Grade", back_populates="submission", uselist=False)
+    telemetry = relationship("SubmissionTelemetry", back_populates="submission", uselist=False)
