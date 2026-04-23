@@ -7,7 +7,15 @@
       "Bash(python -m pytest tests/ -v)",
       "Bash(python -m alembic revision --autogenerate -m \"add announcements table\")",
       "Bash(python -m alembic upgrade head)",
-      "Bash(python -m pytest tests/ -q)"
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(railway add *)",
+      "Bash(railway service *)",
+      "Bash(railway status *)",
+      "Bash(railway *)",
+      "Bash(pnpm run *)",
+      "Bash(curl *)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:FPyCCHlZiGFWiGrQcLNRxUgKlvCpgveS@shinkansen.proxy.rlwy.net:23845/railway\" .venv/Scripts/python seed.py)",
+      "Bash(.venv/Scripts/python -c ' *)"
     ]
   }
 }

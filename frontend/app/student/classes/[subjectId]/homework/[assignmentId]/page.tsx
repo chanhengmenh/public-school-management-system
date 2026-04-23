@@ -285,29 +285,41 @@ export default function AssignmentDetailPage() {
         if (!assignment || !user) return;
         setSubmitError(null);
 
-        if ((mode === 'text' || mode === 'both') && !textContent.trim()) {
-            setSubmitError('Please enter your answer text.');
-            return;
-        }
-        if ((mode === 'file' || mode === 'both') && !selectedFile) {
-            setSubmitError('Please select a file to upload.');
-            return;
+        // Derive the actual submission type from what the student provided
+        let actualType: SubmissionMode = mode;
+        if (assignment.submission_type === 'both') {
+            const hasText = !!textContent.trim();
+            const hasFile = !!selectedFile;
+            if (!hasText && !hasFile) {
+                setSubmitError('Please provide a text answer, upload a file, or both.');
+                return;
+            }
+            actualType = hasText && hasFile ? 'both' : hasText ? 'text' : 'file';
+        } else {
+            if (mode === 'text' && !textContent.trim()) {
+                setSubmitError('Please enter your answer text.');
+                return;
+            }
+            if (mode === 'file' && !selectedFile) {
+                setSubmitError('Please select a file to upload.');
+                return;
+            }
         }
 
         setSubmitting(true);
         try {
             const created = await submissionsApi.create({
                 assignment_id: assignment.id,
-                content: (mode === 'text' || mode === 'both') ? textContent.trim() : undefined,
-                submission_type: mode,
+                content: (actualType === 'text' || actualType === 'both') ? textContent.trim() : undefined,
+                submission_type: actualType,
             });
 
-            if ((mode === 'file' || mode === 'both') && selectedFile) {
+            if ((actualType === 'file' || actualType === 'both') && selectedFile) {
                 await filesApi.uploadSubmissionFile(created.id, selectedFile);
             }
 
             // Send telemetry only when text was typed (file-only submissions have nothing to track)
-            if (mode === 'text' || mode === 'both') {
+            if (actualType === 'text' || actualType === 'both') {
                 try {
                     await submissionsApi.saveTelemetry(created.id, telemetry.collect());
                 } catch {
@@ -573,38 +585,14 @@ export default function AssignmentDetailPage() {
                       )}
                     </div>
 
-                    {assignment.submission_type === 'both' ? (
-                        <div>
-                            <p className="text-sm font-medium text-slate-700 mb-2">Submission type</p>
-                            <div className="flex flex-wrap gap-3">
-                                {(['text', 'file', 'both'] as SubmissionMode[]).map(m => (
-                                    <label
-                                        key={m}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer text-sm font-medium transition-colors ${
-                                            mode === m
-                                                ? 'border-orange-400 bg-orange-50 text-orange-700'
-                                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="submission_mode"
-                                            value={m}
-                                            checked={mode === m}
-                                            onChange={() => setMode(m)}
-                                            className="sr-only"
-                                        />
-                                        {m === 'text' ? 'Text only' : m === 'file' ? 'File only' : 'Text + File'}
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    ) : null}
-
-                    {(mode === 'text' || mode === 'both') && (
+                    {assignment.submission_type !== 'file' && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                Your Answer {mode === 'text' && <span className="text-red-500">*</span>}
+                                Your Answer{' '}
+                                {assignment.submission_type === 'text'
+                                    ? <span className="text-red-500">*</span>
+                                    : <span className="text-slate-400 font-normal text-xs">(optional)</span>
+                                }
                             </label>
                             <textarea
                                 value={textContent}
@@ -618,10 +606,14 @@ export default function AssignmentDetailPage() {
                         </div>
                     )}
 
-                    {(mode === 'file' || mode === 'both') && (
+                    {assignment.submission_type !== 'text' && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                File {mode === 'file' && <span className="text-red-500">*</span>}
+                                File{' '}
+                                {assignment.submission_type === 'file'
+                                    ? <span className="text-red-500">*</span>
+                                    : <span className="text-slate-400 font-normal text-xs">(optional)</span>
+                                }
                                 <span className="ml-2 font-normal text-slate-400 text-xs">
                                     PDF, Word, Excel, images, plain text
                                 </span>
