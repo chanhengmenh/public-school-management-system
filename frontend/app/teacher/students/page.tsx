@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PageHeader from '@/components/layouts/PageHeader';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { classesApi, analyticsApi, client } from '@/lib/api';
 import { behaviorLogsApi, BehaviorLog } from '@/lib/api/behavior-logs';
@@ -236,22 +237,16 @@ export default function HomeTeacherStudentsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-wrap items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold text-slate-900">
-            {homeClass?.name ?? 'My Home Class'}
-          </h1>
+      <PageHeader
+        title={homeClass?.name ?? 'My Home Class'}
+        subtitle={`Academic Year: ${homeClass?.academic_year ?? '—'}`}
+        badge={
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
             <Home className="w-3.5 h-3.5" />
             Home Teacher
           </span>
-        </div>
-        <p className="text-sm text-slate-500">
-          Academic Year:{' '}
-          <span className="font-medium text-slate-700">{homeClass?.academic_year ?? '—'}</span>
-        </p>
-      </div>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">

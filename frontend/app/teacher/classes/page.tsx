@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import PageHeader from "@/components/layouts/PageHeader";
 import { Loader2, BookOpen, ChevronRight } from "lucide-react";
 import { classSubjectsApi } from "@/lib/api";
 import { ClassSubject } from "@/types/school.types";
@@ -52,11 +53,10 @@ export default function TeacherClassesPage() {
 
   return (
     <div className="p-6 lg:p-8 bg-slate-50 min-h-screen">
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">My Classes</h1>
-        <p className="text-slate-500 mt-1 text-sm">Manage your assigned class subjects</p>
-      </div>
+      <PageHeader
+        title="My Classes"
+        subtitle="Manage your assigned class subjects"
+      />
 
       {/* Summary bar */}
       <div className="mb-6">

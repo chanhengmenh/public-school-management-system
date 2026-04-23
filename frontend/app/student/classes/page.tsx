@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import PageHeader from '@/components/layouts/PageHeader';
 import { BookOpen, Loader2 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { enrollmentsApi, classSubjectsApi } from '@/lib/api';
@@ -45,18 +46,10 @@ export default function StudentClassesPage() {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 lg:px-8 py-6 mb-8">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-3xl font-serif font-bold text-[#0f172a]">
-                            My Classes
-                        </h1>
-                        <p className="text-sm text-slate-500 mt-1">
-                            {classes.length} Active Courses
-                        </p>
-                    </div>
-                </div>
-            </header>
+            <PageHeader
+                title="My Classes"
+                subtitle={`${classes.length} Active Courses`}
+            />
 
             <div className="px-6 lg:px-8 pb-8">
                 {classes.length > 0 ? (

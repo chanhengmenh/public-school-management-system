@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import PageHeader from '@/components/layouts/PageHeader';
 import { classesApi } from '@/lib/api/classes';
 import { subjectsApi } from '@/lib/api/subjects';
 import { usersApi } from '@/lib/api/users';
@@ -1501,11 +1502,10 @@ export default function AdminAcademicPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Academic Management</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Manage classes and subjects offered in the system.</p>
-      </div>
+      <PageHeader
+        title="Academic Management"
+        subtitle="Manage classes and subjects offered in the system."
+      />
 
       {/* Tab bar */}
       <div className="border-b border-slate-200">

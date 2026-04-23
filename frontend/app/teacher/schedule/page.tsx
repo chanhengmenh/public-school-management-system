@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
+import PageHeader from "@/components/layouts/PageHeader";
 import { Loader2, Calendar, MapPin, AlertCircle, Clock } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { schedulesApi } from "@/lib/api";
@@ -117,18 +118,10 @@ export default function TeacherSchedulePage() {
 
   return (
     <div className="p-6 lg:p-8 bg-slate-50 min-h-screen">
-      {/* Page header */}
-      <div className="mb-8 flex items-start gap-4">
-        <div className="p-3 bg-orange-50 border border-orange-100 rounded-xl flex-shrink-0">
-          <Calendar className="h-6 w-6 text-orange-500" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">My Schedule</h1>
-          <p className="text-slate-500 mt-1 text-sm">
-            Your teaching schedule for the current term
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="My Schedule"
+        subtitle="Your teaching schedule for the current term"
+      />
 
       {/* Summary */}
       <div className="mb-6">

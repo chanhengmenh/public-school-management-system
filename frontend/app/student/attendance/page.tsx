@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import PageHeader from '@/components/layouts/PageHeader';
 import {
   Loader2,
   AlertCircle,
@@ -176,14 +177,15 @@ export default function AttendancePage() {
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-6 lg:px-8 py-8 space-y-6">
 
-        {/* Page Header */}
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-900">Mark Attendance</h1>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-600 text-xs font-semibold rounded-full border border-orange-200">
-            <ClipboardCheck className="h-3.5 w-3.5" />
-            Class Monitor
-          </span>
-        </div>
+        <PageHeader
+          title="Mark Attendance"
+          badge={
+            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-600 text-xs font-semibold rounded-full border border-orange-200">
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              Class Monitor
+            </span>
+          }
+        />
 
         {enrollment && (
           <p className="text-sm text-slate-500 -mt-2">

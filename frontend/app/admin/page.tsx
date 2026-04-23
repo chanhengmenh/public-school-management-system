@@ -56,7 +56,7 @@ export default function AdminDashboardPage() {
 
     return (
         <div className="p-8 bg-slate-50 min-h-screen">
-            <h1 className="text-3xl font-serif font-bold text-slate-900 mb-8">System Overview</h1>
+            <h1 className="text-3xl font-sans font-bold text-slate-900 mb-8">System Overview</h1>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, i) => (

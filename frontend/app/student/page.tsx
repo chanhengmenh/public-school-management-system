@@ -111,7 +111,7 @@ export default function StudentDashboardPage() {
                     <div className="flex justify-between items-start">
                         <div>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Welcome, {user?.full_name}</h1>
+                                <h1 className="text-3xl font-sans font-bold text-[#0f172a] tracking-tight">Welcome, {user?.full_name}</h1>
                                 {user?.is_class_monitor && (
                                     <span className="bg-blue-100/50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-blue-200/50">
                                         Class Monitor
@@ -140,7 +140,7 @@ export default function StudentDashboardPage() {
                     </div>
 
                     <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 mt-6">
-                        <h2 className="text-xl font-serif font-bold text-slate-900 flex items-baseline gap-2 mb-2">
+                        <h2 className="text-xl font-sans font-bold text-slate-900 flex items-baseline gap-2 mb-2">
                             My Subjects
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
@@ -165,7 +165,7 @@ export default function StudentDashboardPage() {
                     </div>
 
                     <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 mt-6">
-                        <h2 className="text-xl font-serif font-bold text-slate-900 mb-2">Active Assignments</h2>
+                        <h2 className="text-xl font-sans font-bold text-slate-900 mb-2">Active Assignments</h2>
                         <div className="flex flex-col">
                             {assignments.length > 0 ? assignments.map((a, i) => (
                                 <div key={i} className="flex items-center py-4 border-b border-slate-50 last:border-0 last:pb-0">
@@ -192,7 +192,7 @@ export default function StudentDashboardPage() {
 
                     <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 mt-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-serif font-bold text-slate-900 flex items-center gap-2">
+                            <h2 className="text-xl font-sans font-bold text-slate-900 flex items-center gap-2">
                                 <Megaphone className="w-5 h-5 text-orange-400" /> Announcements
                             </h2>
                             <Link href="/student/notifications" className="text-xs text-slate-400 hover:text-orange-500 font-medium transition-colors">

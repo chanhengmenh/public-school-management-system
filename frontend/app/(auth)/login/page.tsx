@@ -35,7 +35,7 @@ export default function LoginPage() {
 
             <div className="relative z-10 w-full max-w-md p-8 sm:p-10 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-10">
-                    <h2 className="text-4xl font-serif font-bold text-white mb-2 tracking-tight">Login</h2>
+                    <h2 className="text-4xl font-sans font-bold text-white mb-2 tracking-tight">Login</h2>
                     <p className="text-slate-400 text-sm">Enter your credentials to access your dashboard</p>
                 </div>
 

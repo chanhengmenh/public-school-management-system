@@ -49,7 +49,7 @@ export default function PeoplePage() {
             {/* Teacher Section */}
             <section>
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-6">
-                    <h2 className="text-2xl font-serif font-bold text-slate-900">Teachers</h2>
+                    <h2 className="text-2xl font-sans font-bold text-slate-900">Teachers</h2>
                     <span className="text-sm text-slate-500 font-medium">1 person</span>
                 </div>
                 <div className="flex items-center space-x-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
@@ -66,7 +66,7 @@ export default function PeoplePage() {
             {/* Students Section */}
             <section>
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-6">
-                    <h2 className="text-2xl font-serif font-bold text-slate-900">Classmates</h2>
+                    <h2 className="text-2xl font-sans font-bold text-slate-900">Classmates</h2>
                     <span className="text-sm text-slate-500 font-medium">{classmates.length} students</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">

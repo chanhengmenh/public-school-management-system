@@ -77,7 +77,7 @@ export default function ChangePasswordPage() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-500/10 border border-orange-500/20 mb-4">
                         <ShieldCheck className="h-8 w-8 text-orange-400" />
                     </div>
-                    <h2 className="text-3xl font-serif font-bold text-white mb-2 tracking-tight">
+                    <h2 className="text-3xl font-sans font-bold text-white mb-2 tracking-tight">
                         Change Your Password
                     </h2>
                     <p className="text-slate-400 text-sm">

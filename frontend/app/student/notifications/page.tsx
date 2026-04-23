@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import PageHeader from '@/components/layouts/PageHeader';
 import { Megaphone, BookOpen, AlertCircle, Award, Bell, Loader2 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { notificationsApi } from '@/lib/api';
@@ -114,17 +115,10 @@ export default function NotificationsPage() {
     return (
         <div className="min-h-screen bg-slate-50 font-sans">
             <div className="max-w-7xl mx-auto w-full flex flex-col">
-                {/* Sticky Header */}
-                <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Notifications</h1>
-                            <p className="text-sm text-slate-500 mt-1">
-                                You have {unreadCount} unread message{unreadCount !== 1 ? 's' : ''}
-                            </p>
-                        </div>
-                    </div>
-                </header>
+                <PageHeader
+                    title="Notifications"
+                    subtitle={`${unreadCount} unread message${unreadCount !== 1 ? 's' : ''}`}
+                />
 
                 {/* Content Wrapper */}
                 <div className="px-6 lg:px-8 pb-12 w-full max-w-4xl">

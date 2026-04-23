@@ -165,7 +165,7 @@ export default function MainSidebar({ role }: MainSidebarProps) {
                         <div className="bg-slate-800/50 p-2 rounded-xl flex items-center justify-center shrink-0">
                             <GraduationCap className="text-orange-500 h-6 w-6" />
                         </div>
-                        <span className="text-white text-xl font-bold font-serif tracking-tight whitespace-nowrap overflow-hidden ml-3">
+                        <span className="text-white text-xl font-bold font-sans tracking-tight whitespace-nowrap overflow-hidden ml-3">
                             PSMS
                         </span>
                     </div>

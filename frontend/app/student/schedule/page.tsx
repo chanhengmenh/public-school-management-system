@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import PageHeader from "@/components/layouts/PageHeader";
 import { Calendar, ChevronDown, Clock, MapPin, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { enrollmentsApi, schedulesApi } from "@/lib/api";
@@ -148,14 +149,7 @@ export default function StudentSchedulePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50 px-6 lg:px-8 py-6 mb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-serif font-bold text-[#0f172a] tracking-tight">Schedule</h1>
-            <p className="text-sm text-slate-500 mt-1">Weekly Timetable</p>
-          </div>
-        </div>
-      </header>
+      <PageHeader title="Schedule" subtitle="Weekly Timetable" />
 
       <div className="px-6 lg:px-8 pb-8 pt-6">
         {/* Top Action Bar */}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PageHeader from '@/components/layouts/PageHeader';
 import { analyticsApi, classesApi } from '@/lib/api';
 import type { AdminOverview, ClassAnalytics, Class } from '@/types/school.types';
 import {
@@ -119,13 +120,10 @@ export default function AdminAnalyticsPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Page Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">System Analytics</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Platform-wide overview and per-class performance data
-          </p>
-        </div>
+        <PageHeader
+          title="System Analytics"
+          subtitle="Platform-wide overview and per-class performance data"
+        />
 
         {/* Overview Stats Grid */}
         <section>

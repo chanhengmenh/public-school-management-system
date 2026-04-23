@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import PageHeader from '@/components/layouts/PageHeader';
 import { usersApi } from '@/lib/api/users';
 import { classesApi } from '@/lib/api/classes';
 import { User, UserCreate, UserUpdate, UserRole, UserGender } from '@/types/user.types';
@@ -385,13 +386,10 @@ export default function AdminUsersPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">User Management</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Manage all system accounts and roles.</p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHeader
+        title="User Management"
+        subtitle="Manage all system accounts and roles."
+        actions={<>
           <label className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
             <span className="text-base leading-none">&#8593;</span>
             Import CSV
@@ -404,8 +402,8 @@ export default function AdminUsersPage() {
             <span className="text-base leading-none">+</span>
             Add User
           </button>
-        </div>
-      </div>
+        </>}
+      />
 
       {/* Action message */}
       {actionMsg && (
