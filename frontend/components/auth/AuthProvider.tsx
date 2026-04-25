@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "../../types/user.types";
-import { usersApi, authApi } from "../../lib/api";
-import { LoginRequest } from "../../types/auth.types";
+import { usersApi } from "../../lib/api";
+import { authApi, LoginRequest } from "../../lib/api/auth";
 import { useRouter } from "next/navigation";
 import { setCookie, deleteCookie } from "../../lib/utils";
 
@@ -31,17 +31,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: unknown) {
       const apiError = error as { status?: number };
       if (apiError.status === 401) {
-        const refreshToken = localStorage.getItem("refresh_token");
-        if (refreshToken) {
-          try {
-            await authApi.refresh({ refresh_token: refreshToken });
-            const userData = await usersApi.getMe();
-            setUser(userData);
-            setCookie("user_role", userData.role, 30);
-            return;
-          } catch (refreshError) {
-            console.error("Silent refresh failed", refreshError);
-          }
+        try {
+          await authApi.refresh();
+          const userData = await usersApi.getMe();
+          setUser(userData);
+          setCookie("user_role", userData.role, 30);
+          return;
+        } catch {
+          // refresh cookie missing or expired — fall through to logout
         }
       }
       setUser(null);
@@ -78,14 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    // JWT is stateless — just wipe local tokens, no server call needed.
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      deleteCookie("access_token");
-      deleteCookie("refresh_token");
-      deleteCookie("user_role");
-    }
+    authApi.logout();
     setUser(null);
     router.push("/login");
     router.refresh();

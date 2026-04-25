@@ -67,33 +67,26 @@ async function request<T>(
 
   if (response.status === 401) {
     if (typeof window !== "undefined" && !endpoint.includes("/auth/")) {
-      // Try to refresh the access token, then retry the original request once
-      const refreshToken = localStorage.getItem("refresh_token");
-      if (refreshToken) {
-        try {
-          const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-          });
-          if (refreshRes.ok) {
-            const { access_token } = await refreshRes.json();
-            localStorage.setItem("access_token", access_token);
-            // Retry original request with new token
-            const retryConfig = { ...config };
-            (retryConfig.headers as Record<string, string>)["Authorization"] = `Bearer ${access_token}`;
-            const retryResponse = await fetch(url.toString(), retryConfig);
-            if (retryResponse.ok) {
-              if (retryResponse.status === 204) return {} as T;
-              return retryResponse.json();
-            }
+      try {
+        const refreshRes = await fetch(`${BASE_URL}/auth/refresh/`, {
+          method: "POST",
+          credentials: "include", // sends HttpOnly refresh_token cookie automatically
+        });
+        if (refreshRes.ok) {
+          const { access_token } = await refreshRes.json();
+          localStorage.setItem("access_token", access_token);
+          const retryConfig = { ...config };
+          (retryConfig.headers as Record<string, string>)["Authorization"] = `Bearer ${access_token}`;
+          const retryResponse = await fetch(url.toString(), retryConfig);
+          if (retryResponse.ok) {
+            if (retryResponse.status === 204) return {} as T;
+            return retryResponse.json();
           }
-        } catch {
-          // refresh failed — fall through to redirect
         }
+      } catch {
+        // refresh failed — fall through to redirect
       }
       localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
       window.location.href = "/login";
     }
   }

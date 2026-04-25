@@ -25,7 +25,8 @@ class TestLogin:
         assert r.status_code == 200
         body = r.json()
         assert "access_token" in body
-        assert "refresh_token" in body
+        assert "refresh_token" not in body  # now set as HttpOnly cookie
+        assert "refresh_token" in r.cookies
 
     def test_wrong_password_returns_401(self, client, db):
         make_user(db, email="wrongpass@test.com")
@@ -40,9 +41,9 @@ class TestLogin:
 class TestRefresh:
     def test_valid_refresh_token_returns_new_access_token(self, client, db):
         make_user(db, email="refresh@test.com")
-        login_r = client.post("/auth/login", json={"email": "refresh@test.com", "password": "pass"})
-        refresh_token = login_r.json()["refresh_token"]
-        r = client.post("/auth/refresh", json={"refresh_token": refresh_token})
+        client.post("/auth/login", json={"email": "refresh@test.com", "password": "pass"})
+        # TestClient stores the cookie from login automatically
+        r = client.post("/auth/refresh")
         assert r.status_code == 200
         assert "access_token" in r.json()
 
@@ -50,14 +51,19 @@ class TestRefresh:
         make_user(db, email="badrefresh@test.com")
         login_r = client.post("/auth/login", json={"email": "badrefresh@test.com", "password": "pass"})
         access_token = login_r.json()["access_token"]
-        r = client.post("/auth/refresh", json={"refresh_token": access_token})
+        # Override the cookie with an access token (wrong type)
+        client.cookies.set("refresh_token", access_token)
+        r = client.post("/auth/refresh")
+        assert r.status_code == 401
+
+    def test_missing_refresh_cookie_returns_401(self, client, db):
+        r = client.post("/auth/refresh")
         assert r.status_code == 401
 
 
 class TestProtectedEndpoints:
     def test_no_token_returns_unauthorized(self, client, db):
         r = client.get("/users/me")
-        # FastAPI's HTTPBearer returns 403 when no credentials are provided
         assert r.status_code in (401, 403)
 
     def test_invalid_token_returns_401(self, client, db):

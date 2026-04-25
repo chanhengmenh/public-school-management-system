@@ -1,41 +1,59 @@
-import { client } from "./client";
-import { LoginRequest, TokenResponse, RefreshRequest, AccessTokenResponse } from "../../types/auth.types";
+import { TokenResponse, AccessTokenResponse } from "../../types/auth.types";
 import { setCookie, deleteCookie } from "../utils";
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 export const authApi = {
-  login: async (data: LoginRequest) => {
-    const response = await client.post<TokenResponse>("/auth/login", data);
+  login: async (data: LoginRequest): Promise<TokenResponse> => {
+    const res = await fetch(`${BASE_URL}/auth/login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw Object.assign(new Error("Login failed"), { status: res.status, data: err });
+    }
+    const response: TokenResponse = await res.json();
     if (typeof window !== "undefined") {
       localStorage.setItem("access_token", response.access_token);
-      localStorage.setItem("refresh_token", response.refresh_token);
-      
-      // Set cookies for middleware/proxy access (30 days)
-      setCookie("access_token", response.access_token, 30);
-      setCookie("refresh_token", response.refresh_token, 30);
+      setCookie("access_token", response.access_token, 1);
     }
     return response;
   },
 
-  refresh: async (data: RefreshRequest) => {
-    const response = await client.post<AccessTokenResponse>("/auth/refresh", data);
+  refresh: async (): Promise<AccessTokenResponse> => {
+    const res = await fetch(`${BASE_URL}/auth/refresh/`, {
+      method: "POST",
+      credentials: "include", // sends the HttpOnly refresh_token cookie automatically
+    });
+    if (!res.ok) throw Object.assign(new Error("Refresh failed"), { status: res.status });
+    const response: AccessTokenResponse = await res.json();
     if (typeof window !== "undefined") {
       localStorage.setItem("access_token", response.access_token);
-      setCookie("access_token", response.access_token, 30);
+      setCookie("access_token", response.access_token, 1);
     }
     return response;
   },
 
-  logout: async () => {
+  logout: async (): Promise<void> => {
     try {
-      await client.post("/auth/logout");
-    } catch (e) {
-      console.error("Logout API call failed", e);
+      await fetch(`${BASE_URL}/auth/logout/`, {
+        method: "POST",
+        credentials: "include", // clears the HttpOnly cookie server-side
+      });
+    } catch {
+      // best-effort
     } finally {
       if (typeof window !== "undefined") {
         localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
         deleteCookie("access_token");
-        deleteCookie("refresh_token");
         deleteCookie("user_role");
       }
     }
