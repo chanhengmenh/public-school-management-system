@@ -8,7 +8,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    actor_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     action = Column(String(50), nullable=False, index=True)  # created, updated, deleted, reset_password, imported, etc.
     resource_type = Column(String(50), nullable=False, index=True)  # user, class, enrollment, grade, assignment, announcement, etc.
     resource_id = Column(Integer, nullable=True)

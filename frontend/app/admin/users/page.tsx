@@ -338,8 +338,12 @@ export default function AdminUsersPage() {
       await usersApi.delete(user.id);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
       setActionMsg({ type: 'success', text: `User "${user.full_name}" deleted.` });
-    } catch {
-      setActionMsg({ type: 'error', text: 'Failed to delete user.' });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setActionMsg({ type: 'error', text: err.data.detail ?? 'Failed to delete user.' });
+      } else {
+        setActionMsg({ type: 'error', text: 'Failed to delete user.' });
+      }
     } finally {
       setDeleteTarget(null);
       setTimeout(() => setActionMsg(null), 4000);

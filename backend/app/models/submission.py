@@ -9,7 +9,7 @@ class AssignmentSubmission(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=False)
-    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     content = Column(Text, nullable=True)
     submission_type = Column(String, default="text")  # text, file, both
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())

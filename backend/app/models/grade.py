@@ -11,7 +11,7 @@ class Grade(Base):
     submission_id = Column(Integer, ForeignKey("assignment_submissions.id"), nullable=False, unique=True)
     score = Column(Numeric(5, 2), nullable=False)
     feedback = Column(Text, nullable=True)
-    graded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    graded_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     graded_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

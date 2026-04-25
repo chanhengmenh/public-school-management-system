@@ -9,7 +9,7 @@ class SubmissionTelemetry(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     submission_id = Column(Integer, ForeignKey("assignment_submissions.id", ondelete="CASCADE"), unique=True, nullable=False)
-    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     typed_chars = Column(Integer, default=0)
     paste_count = Column(Integer, default=0)
     pasted_chars = Column(Integer, default=0)

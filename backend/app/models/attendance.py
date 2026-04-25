@@ -16,10 +16,10 @@ class Attendance(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
-    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     date = Column(Date, nullable=False)
     status = Column(Enum(AttendanceStatus), nullable=False)
-    marked_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    marked_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     note = Column(String, nullable=True)
 
     __table_args__ = (UniqueConstraint("class_id", "student_id", "date", name="uq_attendance"),)

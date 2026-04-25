@@ -16,6 +16,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.announcement import Announcement, AnnouncementTarget
 from app.models.audit_log import AuditLog
 from app.models.material import Material
+from app.models.submission_telemetry import SubmissionTelemetry
 
 __all__ = [
     "User", "UserRole",
@@ -35,4 +36,5 @@ __all__ = [
     "Announcement", "AnnouncementTarget",
     "AuditLog",
     "Material",
+    "SubmissionTelemetry",
 ]

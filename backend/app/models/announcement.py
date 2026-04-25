@@ -19,7 +19,7 @@ class Announcement(Base):
     body = Column(Text, nullable=False)
     target = Column(Enum(AnnouncementTarget), nullable=False, default=AnnouncementTarget.all)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     is_pinned = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

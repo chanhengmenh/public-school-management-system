@@ -19,7 +19,7 @@ class BehaviorLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     submission_id = Column(Integer, ForeignKey("assignment_submissions.id"), nullable=False)
-    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     event_type = Column(Enum(EventType), nullable=False)
     event_data = Column(JSON, nullable=True)
     client_ts = Column(BigInteger, nullable=False)

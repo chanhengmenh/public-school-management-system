@@ -232,6 +232,8 @@ def reset_user_password(user_id: int, db: Session = Depends(get_db),
 @router.delete("/{user_id}", dependencies=[admin_only])
 def delete_user(user_id: int, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
+    if current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
     target = user_service.get_user(db, user_id)
     detail = f"Deleted {target.role.value}: {target.full_name} ({target.email})"
     user_service.delete_user(db, user_id)

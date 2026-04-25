@@ -23,7 +23,7 @@ class Assignment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     class_subject_id = Column(Integer, ForeignKey("class_subjects.id"), nullable=False)
-    publisher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    publisher_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     due_date = Column(DateTime(timezone=True), nullable=True)

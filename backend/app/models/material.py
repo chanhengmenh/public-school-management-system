@@ -9,7 +9,7 @@ class Material(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     class_subject_id = Column(Integer, ForeignKey("class_subjects.id"), nullable=False)
-    uploader_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    uploader_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String, nullable=False)
     file_path = Column(String, nullable=True)
     file_type = Column(String, nullable=True)

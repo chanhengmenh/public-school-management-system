@@ -9,7 +9,7 @@ class Class(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     academic_year = Column(String, nullable=False)
-    home_teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    home_teacher_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     home_teacher = relationship("User", back_populates="home_class")
     enrollments = relationship("Enrollment", back_populates="class_")
