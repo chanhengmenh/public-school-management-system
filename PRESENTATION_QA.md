@@ -89,8 +89,9 @@ It is the user avatar — a `div` with `bg-gradient-to-br from-indigo-500 to-pur
 → `frontend/components/layouts/MainSidebar.tsx:212-224`
 
 **Q20. What happens when you click the logout button in the sidebar?**
-A `window.confirm()` dialog asks for confirmation. If confirmed, `logout()` from `AuthProvider` is called, which clears the access token from memory and the refresh token from `localStorage`, then redirects to `/login`.
+A `window.confirm()` dialog asks for confirmation. If confirmed, `logout()` from `AuthProvider` is called, which calls `POST /auth/logout` to clear the HttpOnly refresh token cookie server-side, removes the access token from `localStorage`, then redirects to `/login`.
 → `frontend/components/layouts/MainSidebar.tsx:99-103`
+→ `frontend/lib/api/auth.ts` — `logout()`
 
 **Q21. Why does the sidebar have no scrollbar visible even when it overflows?**
 The sidebar uses `[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]` — these Tailwind arbitrary-property classes hide the scrollbar in all browsers while keeping scroll functionality.
@@ -252,15 +253,17 @@ A system-wide overview with bar charts showing class averages across all classes
 ## 9. AUTHENTICATION & SECURITY ARCHITECTURE
 
 **Q53. How does the system keep users logged in when they refresh the page?**
-The access token is stored only in memory (never in `localStorage` or cookies). The refresh token is stored in `localStorage`. On every page load, `AuthProvider` silently calls `GET /auth/refresh` with the stored refresh token to get a new access token.
+The access token is stored in `localStorage` (short-lived, 15 min). The refresh token is stored in an **HttpOnly cookie** set by the backend — JavaScript cannot read it. On every page load, `AuthProvider` silently calls `POST /auth/refresh` and the browser sends the HttpOnly cookie automatically, returning a fresh access token.
 → `frontend/components/auth/AuthProvider.tsx`
+→ `backend/app/routers/auth.py` — `POST /auth/refresh`
 
 **Q54. If the access token expires mid-session, what happens?**
-The Axios client (`client.ts`) has a 401 response interceptor. When any API call returns 401, it automatically calls `GET /auth/refresh`, stores the new access token, then retries the original failed request — transparent to the user.
-→ `frontend/lib/api/client.ts` — response interceptor
+The fetch-based API client (`client.ts`) has a 401 handler. When any API call returns 401, it automatically calls `POST /auth/refresh` with `credentials: "include"` (so the browser sends the HttpOnly cookie), stores the new access token, then retries the original failed request — transparent to the user.
+→ `frontend/lib/api/client.ts` — 401 handler
 
-**Q55. Why is the access token kept in memory and not localStorage?**
-Storing JWT access tokens in `localStorage` exposes them to XSS attacks — any injected script can read them. Keeping the token in memory means it only lives for the current tab session, reducing the attack surface.
+**Q55. Why is the refresh token in an HttpOnly cookie instead of localStorage?**
+`localStorage` is accessible to any JavaScript on the page — if there is an XSS vulnerability, an attacker can steal a `localStorage` token and use it for the token's full lifetime (7 days for a refresh token). An `HttpOnly` cookie is invisible to JavaScript entirely; only the browser can send it. Even if XSS runs on the page, the refresh token cannot be stolen.
+→ `backend/app/routers/auth.py` — `_set_refresh_cookie()`
 
 **Q56. How does the backend protect API endpoints from unauthorized access?**
 Every protected endpoint uses a `get_current_user` dependency that decodes and validates the JWT. Role-specific endpoints use `require_roles(*roles)` — a dependency factory that raises `403 Forbidden` if the user's role is not in the allowed list.
@@ -398,7 +401,7 @@ The backend resolves the full path with `(Path(base) / user_path).resolve()` and
 The first `PUT /grades/{id}` wins. SQLAlchemy's session-based writes are sequential. There is no optimistic locking currently — a known limitation for concurrent grading.
 
 **Q83. How does the system handle the JWT token refresh race condition (two parallel requests both fail with 401)?**
-The Axios interceptor uses a queuing pattern — if a refresh is already in progress when a second 401 arrives, the second request waits for the refresh to complete before retrying.
+The fetch-based client handles 401s sequentially per request. Each failed request independently triggers a refresh attempt with `credentials: "include"`. The HttpOnly cookie is valid for the duration of the 7-day session, so concurrent refresh calls all succeed.
 → `frontend/lib/api/client.ts`
 
 **Q84. What is `suppressHydrationWarning` on the root layout?**
@@ -468,8 +471,9 @@ It doesn't poll continuously — instead it refetches on mount and listens for a
 The backend validates that the `assignment_id` on the submission belongs to a `class_subject` where `teacher_id === current_user.id`. If not, it returns `403`.
 
 **Q100. How are access tokens kept secure if the JavaScript memory gets wiped on page refresh?**
-The refresh token in `localStorage` is used to silently obtain a new access token. The new access token goes into memory again. This design means a stolen refresh token is more dangerous than a stolen access token — which is why refresh tokens are long-lived but access tokens expire in 15 minutes.
+On page reload, `AuthProvider` calls `POST /auth/refresh`. The browser automatically sends the HttpOnly refresh token cookie — JavaScript never touches it. The backend validates the cookie and returns a fresh access token, which is stored back in `localStorage`. The access token is short-lived (15 min), so even if stolen, it expires quickly. The refresh token cannot be stolen via XSS because it is HttpOnly.
 → `frontend/components/auth/AuthProvider.tsx`
+→ `backend/app/routers/auth.py`
 → `backend/app/core/security.py` — token expiry settings
 
 ---
@@ -510,3 +514,35 @@ File uploads and downloads would fail with 500 errors. The rest of the app (auth
 **Q110. Why does the login page say "New to EduPeak? Contact your school admin" instead of a signup button?**
 PSMS is a closed school management system. Students and teachers don't self-register — accounts are created by the admin. The message guides new users to the correct channel without offering a non-functional signup form.
 → `frontend/app/(auth)/login/page.tsx:121-128`
+
+---
+
+## 19. USER DELETION & DATA INTEGRITY
+
+**Q111. What happens to a student's data when the admin deletes their account?**
+The database uses `ON DELETE CASCADE` on all foreign keys pointing to the `users` table for child records — enrollments, submissions, attendance, behavior logs, grades received, notifications, and telemetry are all deleted automatically when the user is deleted. This is enforced at the database level, not in application code.
+→ `backend/app/models/enrollment.py`, `submission.py`, `attendance.py`, `behavior_log.py`, `notification.py`, `submission_telemetry.py`
+
+**Q112. What about grades a teacher gave — are those deleted when the teacher is deleted?**
+No. Grades, assignments, and audit logs use `ON DELETE SET NULL`. When a teacher is deleted, the `graded_by` and `publisher_id` columns are set to NULL, preserving the academic records. Students can still see their grades even after the teacher who graded them is removed.
+→ `backend/app/models/grade.py`, `assignment.py`, `audit_log.py`
+
+**Q113. What happens to a class if its home teacher is deleted?**
+The class itself is preserved. `classes.home_teacher_id` uses `ON DELETE SET NULL` — the class loses its home teacher reference but all students, class-subjects, and enrollment data remain intact. An admin can then assign a new home teacher.
+→ `backend/app/models/class_.py`
+
+**Q114. Can an admin delete their own account?**
+No. The `DELETE /users/{id}` endpoint checks if `current_user.id == user_id` and returns `HTTP 400 — "Cannot delete your own account"`. This prevents accidental lockout. The frontend surfaces this message directly.
+→ `backend/app/routers/users.py` — `delete_user()`
+
+**Q115. Why did user deletion fail before, and how was it fixed?**
+Two problems were found and fixed. First, the database foreign key constraints had no `ON DELETE` rule — the DB refused to delete a user who had any related records (enrollments, submissions, etc.), returning a constraint violation. Second, even after adding `ON DELETE CASCADE` to the FK definitions, SQLAlchemy's ORM was intercepting the delete and trying to SET NULL on `enrollment.student_id` (which is NOT NULL) before the database CASCADE could run. The fix was adding `passive_deletes=True` to all relationships on the `User` model — this tells SQLAlchemy to step aside and let the database handle deletions.
+→ `backend/app/models/user.py` — `passive_deletes=True` on all relationships
+→ `backend/alembic/versions/` — two migration files for the FK changes
+
+**Q116. What is the difference between CASCADE and SET NULL on foreign keys, and how did you decide which to use?**
+`ON DELETE CASCADE` means "delete child rows when the parent is deleted" — used for records that only exist because of the user (enrollments, submissions, notifications). `ON DELETE SET NULL` means "keep the child row but clear the reference" — used for records that have independent value beyond the user (grades given by a teacher, assignments published, audit log entries). The rule of thumb: if the record is the user's own data, cascade. If the record documents something the user did, preserve it.
+
+**Q117. How does the HttpOnly cookie configuration differ between development and production?**
+In production (`ENVIRONMENT=production`), the cookie is set with `Secure=True; SameSite=None` — required because Railway (backend) and Vercel (frontend) are different origins over HTTPS. In development, `Secure=False; SameSite=Lax` is used since both services run on localhost (same site) over HTTP. The `_IS_PROD` flag in the auth router controls this.
+→ `backend/app/routers/auth.py` — `_set_refresh_cookie()`
