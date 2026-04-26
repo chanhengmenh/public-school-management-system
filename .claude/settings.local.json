@@ -15,7 +15,10 @@
       "Bash(pnpm run *)",
       "Bash(curl *)",
       "Bash(DATABASE_URL=\"postgresql://postgres:FPyCCHlZiGFWiGrQcLNRxUgKlvCpgveS@shinkansen.proxy.rlwy.net:23845/railway\" .venv/Scripts/python seed.py)",
-      "Bash(.venv/Scripts/python -c ' *)"
+      "Bash(.venv/Scripts/python -c ' *)",
+      "Bash(pytest tests/ -q)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
