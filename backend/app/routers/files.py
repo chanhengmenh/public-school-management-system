@@ -40,27 +40,19 @@ async def upload_file(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    if not file.content_type or file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_TYPES))}")
-
     try:
+        if not file.content_type or file.content_type not in ALLOWED_TYPES:
+            raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_TYPES))}")
+
         backend = _get_storage_backend()
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Storage backend unavailable") from exc
+        content = await file.read()
 
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB")
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB")
 
-    try:
         stored_path = await backend.save(content, file.filename or "upload", resource_type, resource_id)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="File upload failed") from exc
 
-    if resource_type == "submissions":
-        try:
+        if resource_type == "submissions":
             record = SubmissionFile(
                 submission_id=resource_id,
                 file_url=stored_path,
@@ -70,12 +62,15 @@ async def upload_file(
             db.add(record)
             db.commit()
             db.refresh(record)
-        except Exception as exc:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Failed to save file record") from exc
-        return {"file_id": record.id, "stored_path": stored_path}
+            return {"file_id": record.id, "stored_path": stored_path}
 
-    return {"stored_path": stored_path}
+        return {"stored_path": stored_path}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {type(exc).__name__}: {exc}") from exc
 
 
 @router.get("/{file_path:path}/signed-url", response_model=dict)
