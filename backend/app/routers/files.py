@@ -83,6 +83,14 @@ def get_signed_url(file_path: str, expires: int = Query(3600), _: User = Depends
 
 @router.get("/{file_path:path}")
 def serve_file(file_path: str, _: User = Depends(get_current_user)):
+    if settings.STORAGE_BACKEND == "supabase":
+        backend = _get_storage_backend()
+        signed_url = backend.get_signed_url(file_path)
+        if not signed_url:
+            raise NotFoundError("File not found")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=signed_url, status_code=302)
+
     base = Path(settings.LOCAL_UPLOAD_DIR).resolve()
     full_path = (base / file_path).resolve()
     if not str(full_path).startswith(str(base)):
