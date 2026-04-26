@@ -49,12 +49,18 @@ export default function TeacherAttendancePage() {
     const params = useParams();
     const subjectId = Number(params?.subjectId);
 
-    const [selectedDate, setSelectedDate] = useState(getToday);
+    const [selectedDate, setSelectedDate] = useState('');
+    const [mounted, setMounted] = useState(false);
     const [students, setStudents] = useState<User[]>([]);
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [classId, setClassId] = useState<number | null>(null);
+
+    useEffect(() => {
+        setSelectedDate(getToday());
+        setMounted(true);
+    }, []);
 
     // Resolve class_id + roster once
     useEffect(() => {
@@ -104,8 +110,10 @@ export default function TeacherAttendancePage() {
         {} as Record<AttendanceStatus, number>
     );
 
-    const isFuture = isFutureDate(selectedDate);
+    const isFuture = selectedDate ? isFutureDate(selectedDate) : false;
     const hasRecords = records.length > 0;
+
+    if (!mounted) return null;
 
     return (
         <div className="flex flex-col space-y-6">
