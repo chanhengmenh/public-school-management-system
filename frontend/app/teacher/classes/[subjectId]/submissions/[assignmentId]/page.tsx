@@ -25,6 +25,8 @@ function FileTypeIcon({ mime }: { mime?: string }) {
 
 function FileViewer({ file }: { file: SubmissionFile }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [officeViewerUrl, setOfficeViewerUrl] = useState<string | null>(null);
+  const [textContent, setTextContent] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState(false);
 
   useEffect(() => {
@@ -33,11 +35,32 @@ function FileViewer({ file }: { file: SubmissionFile }) {
     (async () => {
       try {
         const signedOrBlob = await getFileUrl(file.file_url);
+        if (cancelled) return;
+
+        const isOffice = file.file_type?.includes('wordprocessingml') ||
+          file.file_type === 'application/msword' ||
+          file.file_type?.includes('spreadsheetml');
+
+        if (isOffice && signedOrBlob.startsWith('http')) {
+          if (!cancelled) setOfficeViewerUrl(
+            `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedOrBlob)}`
+          );
+          return;
+        }
+
+        if (file.file_type === 'text/plain') {
+          const res = await fetch(signedOrBlob);
+          const text = await res.text();
+          if (!cancelled) setTextContent(text);
+          URL.revokeObjectURL(signedOrBlob);
+          return;
+        }
+
         const res = await fetch(signedOrBlob);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const buf = await res.arrayBuffer();
         if (cancelled) return;
-        const blob = new Blob([buf], { type: file.file_type || "application/octet-stream" });
+        const blob = new Blob([buf], { type: file.file_type || 'application/octet-stream' });
         url = URL.createObjectURL(blob);
         setBlobUrl(url);
       } catch {
@@ -56,22 +79,30 @@ function FileViewer({ file }: { file: SubmissionFile }) {
       <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Could not load preview.
     </div>
   );
-  if (!blobUrl) return (
+  if (!blobUrl && !officeViewerUrl && textContent === null) return (
     <div className="flex items-center gap-2 p-3 text-slate-400 text-xs">
       <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+    </div>
+  );
+  if (officeViewerUrl) return (
+    <iframe src={officeViewerUrl} title={name} className="w-full h-64 rounded-lg border border-slate-100" />
+  );
+  if (textContent !== null) return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 max-h-48 overflow-auto">
+      <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap break-words leading-relaxed">{textContent}</pre>
     </div>
   );
   if (isImage) return (
     <div className="rounded-lg overflow-hidden border border-slate-100 max-w-sm">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={blobUrl} alt={name} className="max-w-full max-h-64 object-contain" />
+      <img src={blobUrl!} alt={name} className="max-w-full max-h-64 object-contain" />
     </div>
   );
   if (isPdf) return (
-    <iframe src={blobUrl} title={name} className="w-full h-64 rounded-lg border border-slate-100" />
+    <iframe src={blobUrl!} title={name} className="w-full h-64 rounded-lg border border-slate-100" />
   );
   return (
-    <a href={blobUrl} download={name}
+    <a href={blobUrl!} download={name}
       className="inline-flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition-colors">
       <Download className="w-4 h-4" /> Download {name}
     </a>

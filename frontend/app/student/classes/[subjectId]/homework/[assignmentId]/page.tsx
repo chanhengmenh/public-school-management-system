@@ -33,9 +33,11 @@ function formatBytes(bytes: number) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// ─── Inline file viewer (fetches with auth token, renders blob URL) ─────────
+// ─── Inline file viewer ──────────────────────────────────────────────────────
 function FileViewer({ file }: { file: SubmissionFile }) {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [officeViewerUrl, setOfficeViewerUrl] = useState<string | null>(null);
+    const [textContent, setTextContent] = useState<string | null>(null);
     const [loadErr, setLoadErr] = useState(false);
 
     useEffect(() => {
@@ -44,11 +46,32 @@ function FileViewer({ file }: { file: SubmissionFile }) {
         (async () => {
             try {
                 const signedOrBlob = await getFileUrl(file.file_url);
+                if (cancelled) return;
+
+                const isOffice = file.file_type?.includes('wordprocessingml') ||
+                    file.file_type === 'application/msword' ||
+                    file.file_type?.includes('spreadsheetml');
+
+                if (isOffice && signedOrBlob.startsWith('http')) {
+                    if (!cancelled) setOfficeViewerUrl(
+                        `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedOrBlob)}`
+                    );
+                    return;
+                }
+
+                if (file.file_type === 'text/plain') {
+                    const res = await fetch(signedOrBlob);
+                    const text = await res.text();
+                    if (!cancelled) setTextContent(text);
+                    URL.revokeObjectURL(signedOrBlob);
+                    return;
+                }
+
                 const res = await fetch(signedOrBlob);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const buf = await res.arrayBuffer();
                 if (cancelled) return;
-                const blob = new Blob([buf], { type: file.file_type || "application/octet-stream" });
+                const blob = new Blob([buf], { type: file.file_type || 'application/octet-stream' });
                 url = URL.createObjectURL(blob);
                 setBlobUrl(url);
             } catch {
@@ -71,10 +94,28 @@ function FileViewer({ file }: { file: SubmissionFile }) {
         );
     }
 
-    if (!blobUrl) {
+    if (!blobUrl && !officeViewerUrl && textContent === null) {
         return (
             <div className="flex items-center gap-2 p-3 text-slate-400 text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" /> Loading preview…
+            </div>
+        );
+    }
+
+    if (officeViewerUrl) {
+        return (
+            <div className="rounded-xl overflow-hidden border border-slate-100">
+                <iframe src={officeViewerUrl} title={name} className="w-full h-[520px]" />
+            </div>
+        );
+    }
+
+    if (textContent !== null) {
+        return (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 max-h-[400px] overflow-auto">
+                <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap break-words leading-relaxed">
+                    {textContent}
+                </pre>
             </div>
         );
     }
@@ -83,7 +124,7 @@ function FileViewer({ file }: { file: SubmissionFile }) {
         return (
             <div className="rounded-xl overflow-hidden border border-slate-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={blobUrl} alt={name} className="max-w-full max-h-[500px] object-contain" />
+                <img src={blobUrl!} alt={name} className="max-w-full max-h-[500px] object-contain" />
             </div>
         );
     }
@@ -91,14 +132,14 @@ function FileViewer({ file }: { file: SubmissionFile }) {
     if (isPdf) {
         return (
             <div className="rounded-xl overflow-hidden border border-slate-100">
-                <iframe src={blobUrl} title={name} className="w-full h-[520px]" />
+                <iframe src={blobUrl!} title={name} className="w-full h-[520px]" />
             </div>
         );
     }
 
     return (
         <a
-            href={blobUrl}
+            href={blobUrl!}
             download={name}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors"
         >
@@ -232,11 +273,12 @@ export default function AssignmentDetailPage() {
 
     const [mode, setMode] = useState<SubmissionMode>('text');
     const [textContent, setTextContent] = useState('');
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [submitting, setSubmitting] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [resubmitting, setResubmitting] = useState(false);
@@ -277,20 +319,25 @@ export default function AssignmentDetailPage() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    const handleFileSelect = (file: File) => {
-        if (!ACCEPTED_MIME.includes(file.type)) {
-            setSubmitError('File type not allowed. Accepted: PDF, Word, Excel, images, plain text.');
-            return;
+    const handleFileSelect = (files: FileList | File[]) => {
+        const valid: File[] = [];
+        const invalid: string[] = [];
+        Array.from(files).forEach(f => {
+            if (ACCEPTED_MIME.includes(f.type)) valid.push(f);
+            else invalid.push(f.name);
+        });
+        if (invalid.length) {
+            setSubmitError(`Not allowed: ${invalid.join(', ')}. Accepted: PDF, Word, Excel, images, plain text.`);
+        } else {
+            setSubmitError(null);
         }
-        setSubmitError(null);
-        setSelectedFile(file);
+        if (valid.length) setSelectedFiles(prev => [...prev, ...valid]);
     };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setDragOver(false);
-        const file = e.dataTransfer.files[0];
-        if (file) handleFileSelect(file);
+        if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files);
     };
 
     const handleSubmit = async () => {
@@ -301,7 +348,7 @@ export default function AssignmentDetailPage() {
         let actualType: SubmissionMode = mode;
         if (assignment.submission_type === 'both') {
             const hasText = !!textContent.trim();
-            const hasFile = !!selectedFile;
+            const hasFile = selectedFiles.length > 0;
             if (!hasText && !hasFile) {
                 setSubmitError('Please provide a text answer, upload a file, or both.');
                 return;
@@ -312,8 +359,8 @@ export default function AssignmentDetailPage() {
                 setSubmitError('Please enter your answer text.');
                 return;
             }
-            if (mode === 'file' && !selectedFile) {
-                setSubmitError('Please select a file to upload.');
+            if (mode === 'file' && selectedFiles.length === 0) {
+                setSubmitError('Please select at least one file to upload.');
                 return;
             }
         }
@@ -326,8 +373,12 @@ export default function AssignmentDetailPage() {
                 submission_type: actualType,
             });
 
-            if ((actualType === 'file' || actualType === 'both') && selectedFile) {
-                await filesApi.uploadSubmissionFile(created.id, selectedFile);
+            if ((actualType === 'file' || actualType === 'both') && selectedFiles.length > 0) {
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    setUploadProgress(`Uploading file ${i + 1} of ${selectedFiles.length}…`);
+                    await filesApi.uploadSubmissionFile(created.id, selectedFiles[i]);
+                }
+                setUploadProgress(null);
             }
 
             // Send telemetry only when text was typed (file-only submissions have nothing to track)
@@ -342,7 +393,8 @@ export default function AssignmentDetailPage() {
             setSubmitSuccess(true);
             setResubmitting(false);
             setTextContent('');
-            setSelectedFile(null);
+            setSelectedFiles([]);
+            setUploadProgress(null);
             setGrade(null);
             telemetry.reset();
             await loadData();
@@ -495,7 +547,7 @@ export default function AssignmentDetailPage() {
                               setResubmitting(true);
                               setSubmitSuccess(false);
                               setTextContent(submission.content ?? '');
-                              setSelectedFile(null);
+                              setSelectedFiles([]);
                               telemetry.reset();
                           }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors"
@@ -631,53 +683,57 @@ export default function AssignmentDetailPage() {
                                 </span>
                             </label>
 
-                            {selectedFile ? (
-                                <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <FileTypeIcon mime={selectedFile.type} />
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-800">{selectedFile.name}</p>
-                                            <p className="text-xs text-slate-400">{formatBytes(selectedFile.size)}</p>
+                            {selectedFiles.length > 0 && (
+                                <div className="space-y-2 mb-2">
+                                    {selectedFiles.map((f, i) => (
+                                        <div key={i} className="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <FileTypeIcon mime={f.type} />
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium text-slate-800 truncate">{f.name}</p>
+                                                    <p className="text-xs text-slate-400">{formatBytes(f.size)}</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))}
+                                                className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
                                         </div>
-                                    </div>
-                                    <button
-                                        onClick={() => setSelectedFile(null)}
-                                        className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div
-                                    onDrop={handleDrop}
-                                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                                    onDragLeave={() => setDragOver(false)}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                                        dragOver
-                                            ? 'border-orange-400 bg-orange-50'
-                                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                    }`}
-                                >
-                                    <Upload className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                                    <p className="text-sm font-medium text-slate-600">
-                                        Drag & drop a file here, or{' '}
-                                        <span className="text-orange-500 underline">browse</span>
-                                    </p>
-                                    <p className="text-xs text-slate-400 mt-1">
-                                        PDF, Word, Excel, JPG, PNG, GIF, TXT
-                                    </p>
+                                    ))}
                                 </div>
                             )}
+
+                            <div
+                                onDrop={handleDrop}
+                                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                                onDragLeave={() => setDragOver(false)}
+                                onClick={() => fileInputRef.current?.click()}
+                                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                                    dragOver
+                                        ? 'border-orange-400 bg-orange-50'
+                                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
+                            >
+                                <Upload className="w-7 h-7 mx-auto text-slate-300 mb-2" />
+                                <p className="text-sm font-medium text-slate-600">
+                                    {selectedFiles.length > 0 ? 'Add more files, or ' : 'Drag & drop files here, or '}
+                                    <span className="text-orange-500 underline">browse</span>
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    PDF, Word, Excel, JPG, PNG, GIF, TXT
+                                </p>
+                            </div>
 
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 accept={ACCEPTED_EXTENSIONS}
+                                multiple
                                 className="hidden"
                                 onChange={e => {
-                                    const f = e.target.files?.[0];
-                                    if (f) handleFileSelect(f);
+                                    if (e.target.files?.length) handleFileSelect(e.target.files);
                                     e.target.value = '';
                                 }}
                             />
@@ -702,7 +758,7 @@ export default function AssignmentDetailPage() {
                             ) : (
                                 <Send className="h-4 w-4" />
                             )}
-                            {submitting ? 'Submitting…' : 'Submit'}
+                            {submitting ? (uploadProgress ?? 'Submitting…') : 'Submit'}
                         </button>
                     </div>
                 </div>

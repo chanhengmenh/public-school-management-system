@@ -20,13 +20,26 @@ function isPreviewable(mime: string | null): boolean {
   return (
     mime === "application/pdf" ||
     mime.startsWith("image/") ||
-    mime === "text/plain"
+    mime === "text/plain" ||
+    mime.includes("wordprocessingml") ||
+    mime === "application/msword" ||
+    mime.includes("spreadsheetml")
+  );
+}
+
+function isOfficeDoc(mime: string | null): boolean {
+  if (!mime) return false;
+  return (
+    mime.includes("wordprocessingml") ||
+    mime === "application/msword" ||
+    mime.includes("spreadsheetml")
   );
 }
 
 export default function FilePreviewModal({ target, onClose }: Props) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
+  const [officeViewerUrl, setOfficeViewerUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevUrlRef = useRef<string | null>(null);
@@ -35,6 +48,7 @@ export default function FilePreviewModal({ target, onClose }: Props) {
     if (!target) {
       setBlobUrl(null);
       setTextContent(null);
+      setOfficeViewerUrl(null);
       setError(null);
       return;
     }
@@ -44,20 +58,28 @@ export default function FilePreviewModal({ target, onClose }: Props) {
     setError(null);
     setBlobUrl(null);
     setTextContent(null);
+    setOfficeViewerUrl(null);
 
     (async () => {
       try {
         const url = await getFileUrl(target.filePath);
         if (cancelled) { URL.revokeObjectURL(url); return; }
 
-        if (target.fileType === "text/plain") {
+        if (isOfficeDoc(target.fileType)) {
+          if (url.startsWith("http")) {
+            if (!cancelled) setOfficeViewerUrl(
+              `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
+            );
+          } else {
+            if (!cancelled) setError("Office document preview requires production deployment. Please download the file.");
+          }
+        } else if (target.fileType === "text/plain") {
           const res = await fetch(url);
           const text = await res.text();
           if (!cancelled) setTextContent(text);
           URL.revokeObjectURL(url);
         } else {
-          // Fetch as blob and re-create with explicit MIME type so the browser
-          // renders PDFs/images correctly regardless of Supabase's stored content-type.
+          // PDF/images: fetch as blob with explicit MIME type so browser renders correctly
           const res = await fetch(url);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const buf = await res.arrayBuffer();
@@ -192,6 +214,15 @@ export default function FilePreviewModal({ target, onClose }: Props) {
                 {textContent}
               </pre>
             </div>
+          )}
+
+          {!loading && !error && officeViewerUrl && (
+            <iframe
+              src={officeViewerUrl}
+              className="w-full h-full rounded-b-2xl"
+              style={{ minHeight: "500px" }}
+              title={target.title}
+            />
           )}
         </div>
       </div>
