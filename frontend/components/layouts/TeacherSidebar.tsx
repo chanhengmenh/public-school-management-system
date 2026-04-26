@@ -25,7 +25,7 @@ export default function TeacherSidebar() {
 
     useEffect(() => {
         notificationsApi.unreadCount()
-            .then(res => setUnreadCount(res.data.count))
+            .then(res => setUnreadCount(res.count))
             .catch(() => setUnreadCount(0));
     }, []);
 
