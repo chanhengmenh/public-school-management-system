@@ -35,12 +35,21 @@ const statusConfig: Record<AttendanceStatus, { active: string; inactive: string;
 
 const STATUSES: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'];
 
-const getToday = () => new Date().toISOString().split('T')[0];
+const getToday = (): string => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
 
 const shiftDate = (dateStr: string, days: number): string => {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const shifted = new Date(Date.UTC(y, m - 1, d + days));
+    const yr = shifted.getUTCFullYear();
+    const mo = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+    const dy = String(shifted.getUTCDate()).padStart(2, '0');
+    return `${yr}-${mo}-${dy}`;
 };
 
 const formatDisplayDate = (dateStr: string): string => {
