@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
     BookOpen,
@@ -11,20 +11,27 @@ import {
     Settings,
     LogOut,
     GraduationCap,
-    Menu
+    Menu,
+    Users,
 } from 'lucide-react';
-import { useNotifications } from '@/contexts/NotificationContext';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { notificationsApi } from '@/lib/api/notifications';
 
 export default function TeacherSidebar() {
     const pathname = usePathname();
-    const router = useRouter();
+    const { user, logout } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const { unreadCount } = useNotifications();
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        notificationsApi.unreadCount()
+            .then(res => setUnreadCount(res.data.count))
+            .catch(() => setUnreadCount(0));
+    }, []);
 
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to log out?")) {
-            document.cookie = "mock_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            router.push('/login');
+            logout();
         }
     };
 
@@ -33,6 +40,7 @@ export default function TeacherSidebar() {
     const mainMenuLinks: NavLink[] = [
         { name: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
         { name: 'Classes', href: '/teacher/classes', icon: BookOpen },
+        { name: 'Students', href: '/teacher/students', icon: Users },
         { name: 'Schedule', href: '/teacher/schedule', icon: Calendar },
         { name: 'Notifications', href: '/teacher/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     ];
@@ -154,15 +162,17 @@ export default function TeacherSidebar() {
                     onClick={isCollapsed ? handleLogout : undefined}
                     title={isCollapsed ? "Log Out" : undefined}
                 >
-                    <span className="text-white font-bold text-sm">TW</span>
+                    <span className="text-white font-bold text-sm">
+                        {user?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? 'T'}
+                    </span>
                 </div>
 
                 {/* User Info & Logout Button (Expanded Only) */}
                 {!isCollapsed && (
                     <>
                         <div className="ml-3 flex flex-col min-w-0 overflow-hidden">
-                            <span className="text-sm font-semibold text-white whitespace-nowrap truncate">Mr. Tan Wei</span>
-                            <span className="text-xs text-slate-400 whitespace-nowrap truncate">Subject Teacher · Physics</span>
+                            <span className="text-sm font-semibold text-white whitespace-nowrap truncate">{user?.full_name ?? 'Teacher'}</span>
+                            <span className="text-xs text-slate-400 whitespace-nowrap truncate">{user?.is_home_teacher ? 'Home Teacher' : 'Subject Teacher'}</span>
                         </div>
                         <button
                             onClick={handleLogout}
