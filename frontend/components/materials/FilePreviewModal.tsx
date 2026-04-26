@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X, Download, Loader2, AlertCircle } from "lucide-react";
-import { fetchFileAsBlob } from "@/lib/api";
+import { getFileUrl } from "@/lib/api";
 
 export interface PreviewTarget {
   filePath: string;
@@ -47,7 +47,7 @@ export default function FilePreviewModal({ target, onClose }: Props) {
 
     (async () => {
       try {
-        const url = await fetchFileAsBlob(target.filePath);
+        const url = await getFileUrl(target.filePath);
         if (cancelled) { URL.revokeObjectURL(url); return; }
 
         if (target.fileType === "text/plain") {
@@ -78,10 +78,9 @@ export default function FilePreviewModal({ target, onClose }: Props) {
   const handleDownload = async () => {
     if (!target) return;
     try {
-      const url = await fetchFileAsBlob(target.filePath);
+      const url = await getFileUrl(target.filePath);
       const a = document.createElement("a");
       a.href = url;
-      // derive extension from path
       const filename = target.filePath.split("/").pop() ?? target.title;
       a.download = filename;
       a.click();

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { FileText, Download, Eye, Loader2, AlertCircle } from "lucide-react";
-import { materialsApi, fetchFileAsBlob, Material } from "@/lib/api";
+import { materialsApi, getFileUrl, Material } from "@/lib/api";
 import FilePreviewModal, { PreviewTarget } from "@/components/materials/FilePreviewModal";
 
 function fileTypeLabel(mime: string | null): string {
@@ -42,7 +42,7 @@ export default function StudentMaterialsPage() {
 
   const handleDownload = async (filePath: string) => {
     try {
-      const url = await fetchFileAsBlob(filePath);
+      const url = await getFileUrl(filePath);
       const a = document.createElement("a");
       a.href = url;
       a.download = filePath.split("/").pop() ?? "file";

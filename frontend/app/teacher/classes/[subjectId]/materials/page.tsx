@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Upload, FileText, Trash2, Download, Loader2, AlertCircle, X, CheckCircle2, Eye } from "lucide-react";
-import { materialsApi, filesApi, fetchFileAsBlob, Material } from "@/lib/api";
+import { materialsApi, filesApi, getFileUrl, Material } from "@/lib/api";
 import FilePreviewModal, { PreviewTarget } from "@/components/materials/FilePreviewModal";
 
 const ACCEPTED_MIME = [
@@ -134,7 +134,7 @@ export default function TeacherMaterialsPage() {
 
   const handleDownload = async (filePath: string) => {
     try {
-      const url = await fetchFileAsBlob(filePath);
+      const url = await getFileUrl(filePath);
       const a = document.createElement("a");
       a.href = url;
       a.download = filePath.split("/").pop() ?? "file";

@@ -8,7 +8,7 @@ import {
     Send, Lock, Upload, FileText, Image, File, X, Download,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { assignmentsApi, submissionsApi, gradesApi, filesApi, fetchFileAsBlob } from '@/lib/api';
+import { assignmentsApi, submissionsApi, gradesApi, filesApi, getFileUrl } from '@/lib/api';
 import { Grade } from '@/lib/api/grades';
 import { Assignment, Submission, SubmissionFile } from '@/types/school.types';
 
@@ -39,11 +39,11 @@ function FileViewer({ file }: { file: SubmissionFile }) {
     const [loadErr, setLoadErr] = useState(false);
 
     useEffect(() => {
-        let revoke: string | null = null;
-        fetchFileAsBlob(file.file_url)
-            .then(url => { revoke = url; setBlobUrl(url); })
+        let url: string | null = null;
+        getFileUrl(file.file_url)
+            .then(u => { url = u; setBlobUrl(u); })
             .catch(() => setLoadErr(true));
-        return () => { if (revoke) URL.revokeObjectURL(revoke); };
+        return () => { if (url) URL.revokeObjectURL(url); };
     }, [file.file_url]);
 
     const isImage = file.file_type?.startsWith('image/');

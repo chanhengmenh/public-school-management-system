@@ -40,9 +40,36 @@ export const filesApi = {
 };
 
 /**
- * Fetches a backend-served file with the auth token and returns a temporary
- * blob URL suitable for use in <img src> or <iframe src>.
- * Call URL.revokeObjectURL(url) when the component unmounts.
+ * Returns the best URL to use for displaying or downloading a stored file.
+ *
+ * Production (Supabase): calls getSignedUrl → returns an absolute Supabase URL
+ * that the browser can fetch directly. No file data enters JS memory, so large
+ * PDFs don't freeze the page, and the browser uses Supabase's Content-Type header
+ * so PDFs render as PDFs (not raw bytes).
+ *
+ * Local dev: the signed-url endpoint returns a relative /files/… path that
+ * requires an auth header, so we fall back to a blob URL.
+ *
+ * URL.revokeObjectURL() is safe to call on any URL — it's a no-op for non-blob URLs,
+ * so callers don't need to branch on the type.
+ */
+export async function getFileUrl(storedPath: string): Promise<string> {
+  try {
+    const { url } = await filesApi.getSignedUrl(storedPath);
+    if (url.startsWith("http")) {
+      return url; // Supabase signed URL — use directly
+    }
+    // Local dev: relative path needs auth header → fall back to blob
+  } catch {
+    // signed-url endpoint unavailable → fall back to blob
+  }
+  return fetchFileAsBlob(storedPath);
+}
+
+/**
+ * Legacy helper — loads the file into memory as a blob URL.
+ * Prefer getFileUrl() for rendering; only use this when you specifically
+ * need a blob (e.g. reading text/plain content).
  */
 export async function fetchFileAsBlob(storedPath: string): Promise<string> {
   const token =

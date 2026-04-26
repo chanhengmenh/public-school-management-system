@@ -10,7 +10,7 @@ import {
   ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { assignmentsApi, submissionsApi, gradesApi, classSubjectsApi, client } from '@/lib/api';
-import { fetchFileAsBlob } from '@/lib/api/files';
+import { getFileUrl } from '@/lib/api/files';
 import { TelemetryRead } from '@/lib/api/submissions';
 import { Grade } from '@/lib/api/grades';
 import { Assignment, Submission, SubmissionFile } from '@/types/school.types';
@@ -28,11 +28,11 @@ function FileViewer({ file }: { file: SubmissionFile }) {
   const [loadErr, setLoadErr] = useState(false);
 
   useEffect(() => {
-    let revoke: string | null = null;
-    fetchFileAsBlob(file.file_url)
-      .then(url => { revoke = url; setBlobUrl(url); })
+    let url: string | null = null;
+    getFileUrl(file.file_url)
+      .then(u => { url = u; setBlobUrl(u); })
       .catch(() => setLoadErr(true));
-    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+    return () => { if (url) URL.revokeObjectURL(url); };
   }, [file.file_url]);
 
   const isImage = file.file_type?.startsWith('image/');
