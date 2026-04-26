@@ -56,31 +56,42 @@ export default function TeacherAttendancePage() {
     const [error, setError] = useState<string | null>(null);
     const [classId, setClassId] = useState<number | null>(null);
 
-    // Resolve class_id once from the class_subject
+    // Resolve class_id + roster once
     useEffect(() => {
-        classSubjectsApi.getById(subjectId).then(cs => {
-            setClassId(cs.class_id);
-            return client.get<User[]>(`/classes/${cs.class_id}/students`).then(s => setStudents(s));
-        }).catch(() => setError('Failed to load class data.'));
+        let cancelled = false;
+        (async () => {
+            try {
+                const cs = await classSubjectsApi.getById(subjectId);
+                if (cancelled) return;
+                setClassId(cs.class_id);
+                const s = await client.get<User[]>(`/classes/${cs.class_id}/students`);
+                if (!cancelled) setStudents(s);
+            } catch {
+                if (!cancelled) {
+                    setError('Failed to load class data.');
+                    setLoading(false);
+                }
+            }
+        })();
+        return () => { cancelled = true; };
     }, [subjectId]);
 
-    const loadAttendance = useCallback(async () => {
-        if (classId === null) return;
+    const loadAttendance = useCallback(async (cid: number, date: string) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await attendanceApi.list({ class_id: classId, date: selectedDate });
+            const data = await attendanceApi.list({ class_id: cid, date });
             setRecords(data);
         } catch {
             setError('Failed to load attendance.');
         } finally {
             setLoading(false);
         }
-    }, [classId, selectedDate]);
+    }, []);
 
     useEffect(() => {
-        if (classId !== null) loadAttendance();
-    }, [loadAttendance, classId]);
+        if (classId !== null) loadAttendance(classId, selectedDate);
+    }, [classId, selectedDate, loadAttendance]);
 
     const statusMap = Object.fromEntries(records.map(r => [r.student_id, r.status as AttendanceStatus]));
 
@@ -127,7 +138,7 @@ export default function TeacherAttendancePage() {
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-500">
                     <AlertCircle className="h-8 w-8 text-red-400" />
                     <p>{error}</p>
-                    <button onClick={loadAttendance} className="mt-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 transition-colors">Retry</button>
+                    <button onClick={() => classId !== null && loadAttendance(classId, selectedDate)} className="mt-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 transition-colors">Retry</button>
                 </div>
             ) : isFuture ? (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm py-16 flex flex-col items-center justify-center text-center">
