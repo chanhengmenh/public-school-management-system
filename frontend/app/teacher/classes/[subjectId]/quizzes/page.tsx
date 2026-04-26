@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Plus, AlertCircle, Zap, X, Check, FileQuestion } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, Zap, X, Check } from 'lucide-react';
 import { gradeCategoriesApi, assignmentsApi } from '@/lib/api';
 import { GradeCategory, Assignment } from '@/types/school.types';
 
@@ -69,9 +69,10 @@ export default function TeacherQuizzesPage() {
 
   const quizCategories = categories.filter(c => c.name.toLowerCase().includes('quiz'));
 
+  // If a quiz category exists, show only assignments in it; otherwise show all assignments for this subject
   const quizAssignments = quizCategories.length > 0
     ? assignments.filter(a => a.category_id != null && quizCategories.some(c => c.id === a.category_id))
-    : [];
+    : assignments;
 
   const handleFormChange = (field: keyof CreateQuizForm, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -139,30 +140,6 @@ export default function TeacherQuizzesPage() {
     );
   }
 
-  // No quiz category exists
-  if (quizCategories.length === 0) {
-    return (
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-center">
-          <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileQuestion className="h-7 w-7 text-orange-500" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">No Quiz Category Found</h2>
-          <p className="text-slate-500 mb-6">
-            Create a <span className="font-semibold text-slate-700">&ldquo;Quiz&rdquo;</span> grade category in the Grading tab
-            to organize and manage quizzes for this class.
-          </p>
-          <Link
-            href={`/teacher/classes/${subjectId}/grading`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition-colors"
-          >
-            Go to Grading Tab
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -170,8 +147,8 @@ export default function TeacherQuizzesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Quizzes</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {quizAssignments.length} quiz{quizAssignments.length !== 1 ? 'zes' : ''} in{' '}
-            {quizCategories.map(c => c.name).join(', ')}
+            {quizAssignments.length} quiz{quizAssignments.length !== 1 ? 'zes' : ''}
+            {quizCategories.length > 0 && ` in ${quizCategories.map(c => c.name).join(', ')}`}
           </p>
         </div>
         {!showCreateForm && (
@@ -233,11 +210,13 @@ export default function TeacherQuizzesPage() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span>Category:</span>
-              <span className="font-semibold text-slate-700">{quizCategories[0].name}</span>
-              <span className="text-slate-400">({(quizCategories[0].weight * 100).toFixed(0)}%)</span>
-            </div>
+            {quizCategories.length > 0 && (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span>Category:</span>
+                <span className="font-semibold text-slate-700">{quizCategories[0].name}</span>
+                <span className="text-slate-400">({(quizCategories[0].weight * 100).toFixed(0)}%)</span>
+              </div>
+            )}
             {formError && (
               <p className="text-sm text-red-600 flex items-center gap-1">
                 <AlertCircle className="h-4 w-4" />
