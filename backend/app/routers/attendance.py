@@ -4,15 +4,21 @@ from app.dependencies import get_db, get_current_user
 from app.models.user import User, UserRole
 from app.models.attendance import Attendance
 from app.schemas.attendance import AttendanceBatchCreate, AttendanceRead
-from app.core.permissions import require_class_monitor
+from app.core.exceptions import ForbiddenError
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 
-@router.post("/batch", response_model=dict,
-             dependencies=[Depends(require_class_monitor())])
+@router.post("/batch", response_model=dict)
 def batch_create_attendance(data: AttendanceBatchCreate, db: Session = Depends(get_db),
                               current_user: User = Depends(get_current_user)):
+    is_allowed = (
+        current_user.role == UserRole.admin
+        or current_user.role == UserRole.teacher
+        or (current_user.role == UserRole.student and current_user.is_class_monitor)
+    )
+    if not is_allowed:
+        raise ForbiddenError("Only teachers, class monitors, or admins can mark attendance")
     records = []
     for entry in data.entries:
         existing = db.query(Attendance).filter(
