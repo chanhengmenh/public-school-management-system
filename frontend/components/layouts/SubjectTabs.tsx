@@ -30,6 +30,7 @@ function getTeacherTabs(subjectId: string): Tab[] {
     { name: "Materials", href: `/teacher/classes/${subjectId}/materials` },
     { name: "Grading", href: `/teacher/classes/${subjectId}/grading` },
     { name: "Students", href: `/teacher/classes/${subjectId}/students` },
+    { name: "Attendance", href: `/teacher/classes/${subjectId}/attendance` },
     { name: "Quizzes", href: `/teacher/classes/${subjectId}/quizzes` },
     { name: "Analysis", href: `/teacher/classes/${subjectId}/analysis` },
   ];
