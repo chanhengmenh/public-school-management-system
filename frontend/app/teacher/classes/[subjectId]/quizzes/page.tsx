@@ -68,11 +68,7 @@ export default function TeacherQuizzesPage() {
   }, [loadData]);
 
   const quizCategories = categories.filter(c => c.name.toLowerCase().includes('quiz'));
-
-  // If a quiz category exists, show only assignments in it; otherwise show all assignments for this subject
-  const quizAssignments = quizCategories.length > 0
-    ? assignments.filter(a => a.category_id != null && quizCategories.some(c => c.id === a.category_id))
-    : assignments;
+  const quizAssignments = assignments.filter(a => a.is_quiz);
 
   const handleFormChange = (field: keyof CreateQuizForm, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -92,14 +88,14 @@ export default function TeacherQuizzesPage() {
 
     setCreating(true);
     try {
-      const quizCat = quizCategories[0];
       const created = await assignmentsApi.create({
         title: form.title.trim(),
         description: form.description.trim() || undefined,
         due_date: form.due_date || undefined,
         max_score: maxScore,
         class_subject_id: subjectId,
-        category_id: quizCat?.id ?? null,
+        category_id: quizCategories[0]?.id ?? null,
+        is_quiz: true,
       });
       setAssignments(prev => [...prev, created]);
       setForm({ title: '', description: '', due_date: '', max_score: '100' });

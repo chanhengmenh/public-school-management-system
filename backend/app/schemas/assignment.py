@@ -13,6 +13,7 @@ class AssignmentCreate(BaseModel):
     category_id: Optional[int] = None
     submission_type: SubmissionType = SubmissionType.text
     max_attempts: Optional[int] = None
+    is_quiz: bool = False
 
 
 class AssignmentUpdate(BaseModel):
@@ -24,6 +25,7 @@ class AssignmentUpdate(BaseModel):
     category_id: Optional[int] = None
     submission_type: Optional[SubmissionType] = None
     max_attempts: Optional[int] = None
+    is_quiz: Optional[bool] = None
 
 
 class AssignmentRead(BaseModel):
@@ -39,5 +41,6 @@ class AssignmentRead(BaseModel):
     category_id: Optional[int] = None
     submission_type: SubmissionType = SubmissionType.text
     max_attempts: Optional[int] = None
+    is_quiz: bool = False
 
     model_config = {"from_attributes": True}

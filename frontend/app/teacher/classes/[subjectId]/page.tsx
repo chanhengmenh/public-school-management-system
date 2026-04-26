@@ -80,7 +80,7 @@ export default function TeacherSubjectPage() {
         assignmentsApi.list({ class_subject_id: subjectId }),
         gradeCategoriesApi.list({ class_subject_id: subjectId }),
       ]);
-      setAssignments(asns);
+      setAssignments(asns.filter(a => !a.is_quiz));
       setCategories(cats);
     } catch {
       setError("Failed to load assignments.");
