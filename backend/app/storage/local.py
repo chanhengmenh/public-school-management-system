@@ -6,7 +6,7 @@ from app.config import settings
 class LocalFilesystemBackend(StorageBackend):
     """Local filesystem storage backend."""
 
-    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int) -> str:
+    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int, content_type: str | None = None) -> str:
         """Save file to local filesystem and return stored_path."""
         stored_path = self.generate_path(resource_type, resource_id, filename)
         full_path = Path(settings.LOCAL_UPLOAD_DIR) / stored_path

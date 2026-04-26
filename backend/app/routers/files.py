@@ -50,7 +50,7 @@ async def upload_file(
         if len(content) > MAX_FILE_SIZE:
             raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB")
 
-        stored_path = await backend.save(content, file.filename or "upload", resource_type, resource_id)
+        stored_path = await backend.save(content, file.filename or "upload", resource_type, resource_id, file.content_type)
 
         if resource_type == "submissions":
             record = SubmissionFile(

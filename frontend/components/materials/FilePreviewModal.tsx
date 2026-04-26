@@ -56,8 +56,16 @@ export default function FilePreviewModal({ target, onClose }: Props) {
           if (!cancelled) setTextContent(text);
           URL.revokeObjectURL(url);
         } else {
-          prevUrlRef.current = url;
-          if (!cancelled) setBlobUrl(url);
+          // Fetch as blob and re-create with explicit MIME type so the browser
+          // renders PDFs/images correctly regardless of Supabase's stored content-type.
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const buf = await res.arrayBuffer();
+          if (cancelled) return;
+          const blob = new Blob([buf], { type: target.fileType || "application/octet-stream" });
+          const blobUrl = URL.createObjectURL(blob);
+          prevUrlRef.current = blobUrl;
+          if (!cancelled) setBlobUrl(blobUrl);
         }
       } catch {
         if (!cancelled) setError("Failed to load file. Please try downloading instead.");

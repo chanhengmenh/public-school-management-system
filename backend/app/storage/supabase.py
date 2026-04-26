@@ -11,10 +11,11 @@ class SupabaseStorageBackend(StorageBackend):
         self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
         self.bucket_name = settings.SUPABASE_STORAGE_BUCKET
 
-    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int) -> str:
+    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int, content_type: str | None = None) -> str:
         """Save file to Supabase and return stored_path."""
         stored_path = self.generate_path(resource_type, resource_id, filename)
-        response = self.client.storage.from_(self.bucket_name).upload(stored_path, content)
+        file_options = {"content-type": content_type} if content_type else {}
+        response = self.client.storage.from_(self.bucket_name).upload(stored_path, content, file_options=file_options)
         if hasattr(response, "error") and response.error:
             raise HTTPException(status_code=500, detail=f"Storage upload failed: {response.error}")
         return stored_path

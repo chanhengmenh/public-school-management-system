@@ -13,7 +13,7 @@ class StorageBackend(ABC):
         return f"{resource_type}/{resource_id}/{unique_name}"
 
     @abstractmethod
-    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int) -> str:
+    async def save(self, content: bytes, filename: str, resource_type: str, resource_id: int, content_type: str | None = None) -> str:
         """Save file and return stored_path."""
         pass
 

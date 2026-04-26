@@ -40,11 +40,23 @@ function FileViewer({ file }: { file: SubmissionFile }) {
 
     useEffect(() => {
         let url: string | null = null;
-        getFileUrl(file.file_url)
-            .then(u => { url = u; setBlobUrl(u); })
-            .catch(() => setLoadErr(true));
-        return () => { if (url) URL.revokeObjectURL(url); };
-    }, [file.file_url]);
+        let cancelled = false;
+        (async () => {
+            try {
+                const signedOrBlob = await getFileUrl(file.file_url);
+                const res = await fetch(signedOrBlob);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const buf = await res.arrayBuffer();
+                if (cancelled) return;
+                const blob = new Blob([buf], { type: file.file_type || "application/octet-stream" });
+                url = URL.createObjectURL(blob);
+                setBlobUrl(url);
+            } catch {
+                if (!cancelled) setLoadErr(true);
+            }
+        })();
+        return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+    }, [file.file_url, file.file_type]);
 
     const isImage = file.file_type?.startsWith('image/');
     const isPdf = file.file_type === 'application/pdf';
