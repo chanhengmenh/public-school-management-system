@@ -10,6 +10,24 @@ import { ApiError } from '@/lib/api/client';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Converts any ApiError.data.detail shape to a plain string.
+ *  Pydantic v2 returns detail as an array of {loc, msg, input, ctx} objects. */
+function parseApiError(err: ApiError): string {
+  const { detail, message } = err.data as { detail?: unknown; message?: string };
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e: { msg?: string; loc?: unknown[] }) => {
+        const field = Array.isArray(e.loc)
+          ? e.loc.filter((l) => l !== 'body').join('.')
+          : '';
+        return field ? `${field}: ${e.msg}` : (e.msg ?? 'Validation error');
+      })
+      .join('; ');
+  }
+  return message ?? 'An error occurred.';
+}
+
 function roleBadge(role: UserRole) {
   const map: Record<UserRole, string> = {
     [UserRole.admin]: 'bg-purple-100 text-purple-700 border border-purple-200',
@@ -54,8 +72,30 @@ function UserModal({ user, classes, onClose, onSaved }: ModalProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSaving(true);
 
+    // Client-side validation
+    if (!fullName.trim()) {
+      setError('Full name is required.');
+      return;
+    }
+    if (!/^[a-zA-ZÀ-ÿ\s'\-.]+$/.test(fullName.trim())) {
+      setError('Full name should only contain letters, spaces, hyphens, and apostrophes — no numbers.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+      setError('Please enter a valid email address (e.g. name@school.edu).');
+      return;
+    }
+    if (isCreate && password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (!isCreate && password && password.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+
+    setSaving(true);
     try {
       if (isCreate) {
         const payload: UserCreate = {
@@ -85,7 +125,7 @@ function UserModal({ user, classes, onClose, onSaved }: ModalProps) {
       onClose();
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.data.detail ?? err.data.message ?? 'An error occurred.');
+        setError(parseApiError(err));
       } else {
         setError('An unexpected error occurred.');
       }
@@ -340,7 +380,7 @@ export default function AdminUsersPage() {
       setActionMsg({ type: 'success', text: `User "${user.full_name}" deleted.` });
     } catch (err) {
       if (err instanceof ApiError) {
-        setActionMsg({ type: 'error', text: err.data.detail ?? 'Failed to delete user.' });
+        setActionMsg({ type: 'error', text: parseApiError(err) || 'Failed to delete user.' });
       } else {
         setActionMsg({ type: 'error', text: 'Failed to delete user.' });
       }

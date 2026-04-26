@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from app.models.user import UserRole, UserGender
 from typing import Optional
@@ -6,8 +6,8 @@ from typing import Optional
 
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: str
-    password: str
+    full_name: str = Field(min_length=2)
+    password: str = Field(min_length=6)
     role: UserRole
     gender: Optional[UserGender] = None
     is_home_teacher: bool = False
@@ -22,14 +22,14 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_home_teacher: Optional[bool] = None
     is_class_monitor: Optional[bool] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=6)
 
 
 class ProfileUpdate(BaseModel):
     """Fields a user can update on their own profile (no role/privilege changes)."""
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=6)
 
 
 class UserRead(BaseModel):
