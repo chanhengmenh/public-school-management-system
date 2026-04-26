@@ -67,7 +67,7 @@ async function request<T>(
   if (response.status === 401) {
     if (typeof window !== "undefined" && !endpoint.includes("/auth/")) {
       try {
-        const refreshRes = await fetch(`${BASE_URL}/auth/refresh/`, {
+        const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
           method: "POST",
           credentials: "include", // sends HttpOnly refresh_token cookie automatically
         });

@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from app.config import settings
 from app.routers import (
     auth, users, classes, subjects, class_subjects,
@@ -52,6 +52,14 @@ app.include_router(notifications.router)
 app.include_router(announcements.router)
 app.include_router(audit_logs.router)
 app.include_router(materials.router)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    # Re-raise HTTPExceptions so FastAPI's default handler processes them normally
+    if isinstance(exc, HTTPException):
+        raise exc
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @app.get("/health")

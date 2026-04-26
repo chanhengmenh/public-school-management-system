@@ -10,7 +10,7 @@ export interface LoginRequest {
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<TokenResponse> => {
-    const res = await fetch(`${BASE_URL}/auth/login/`, {
+    const res = await fetch(`${BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -29,7 +29,7 @@ export const authApi = {
   },
 
   refresh: async (): Promise<AccessTokenResponse> => {
-    const res = await fetch(`${BASE_URL}/auth/refresh/`, {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
       method: "POST",
       credentials: "include", // sends the HttpOnly refresh_token cookie automatically
     });
@@ -44,7 +44,7 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     try {
-      await fetch(`${BASE_URL}/auth/logout/`, {
+      await fetch(`${BASE_URL}/auth/logout`, {
         method: "POST",
         credentials: "include", // clears the HttpOnly cookie server-side
       });

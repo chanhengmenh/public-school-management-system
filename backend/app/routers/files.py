@@ -43,22 +43,36 @@ async def upload_file(
     if not file.content_type or file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_TYPES))}")
 
-    backend = _get_storage_backend()
+    try:
+        backend = _get_storage_backend()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Storage backend unavailable") from exc
+
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB")
-    stored_path = await backend.save(content, file.filename or "upload", resource_type, resource_id)
+
+    try:
+        stored_path = await backend.save(content, file.filename or "upload", resource_type, resource_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="File upload failed") from exc
 
     if resource_type == "submissions":
-        record = SubmissionFile(
-            submission_id=resource_id,
-            file_url=stored_path,
-            file_type=file.content_type,
-            original_filename=file.filename,
-        )
-        db.add(record)
-        db.commit()
-        db.refresh(record)
+        try:
+            record = SubmissionFile(
+                submission_id=resource_id,
+                file_url=stored_path,
+                file_type=file.content_type,
+                original_filename=file.filename,
+            )
+            db.add(record)
+            db.commit()
+            db.refresh(record)
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Failed to save file record") from exc
         return {"file_id": record.id, "stored_path": stored_path}
 
     return {"stored_path": stored_path}
