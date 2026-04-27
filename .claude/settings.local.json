@@ -18,7 +18,9 @@
       "Bash(.venv/Scripts/python -c ' *)",
       "Bash(pytest tests/ -q)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
     ]
   }
 }

@@ -26,20 +26,20 @@ pytest tests/test_auth.py       # single file
 
 ## Layer Architecture: Router → Service → Model
 
-| File/Dir | Role |
-|---|---|
-| `app/main.py` | FastAPI app, CORS, all routers mounted |
-| `app/config.py` | `Settings` via pydantic-settings; reads `backend/.env` |
-| `app/database.py` | SQLAlchemy engine + `SessionLocal` |
-| `app/dependencies.py` | `get_db()` session generator; `get_current_user()` JWT auth |
-| `app/core/security.py` | JWT encode/decode (python-jose) |
-| `app/core/permissions.py` | `require_roles(*roles)` dependency factory for RBAC |
-| `app/core/exceptions.py` | `UnauthorizedError`, `ForbiddenError`, etc. |
-| `app/models/` | SQLAlchemy ORM models — one file per entity |
-| `app/schemas/` | Pydantic request/response schemas — one file per entity |
-| `app/routers/` | One router per resource |
-| `app/services/` | Business logic (e.g., `auth_service.py`) |
-| `app/storage/` | `StorageBackend` abstract + `local.py` / `supabase.py` |
+| File/Dir                    | Role                                                            |
+| --------------------------- | --------------------------------------------------------------- |
+| `app/main.py`             | FastAPI app, CORS, all routers mounted                          |
+| `app/config.py`           | `Settings` via pydantic-settings; reads `backend/.env`      |
+| `app/database.py`         | SQLAlchemy engine +`SessionLocal`                             |
+| `app/dependencies.py`     | `get_db()` session generator; `get_current_user()` JWT auth |
+| `app/core/security.py`    | JWT encode/decode (python-jose)                                 |
+| `app/core/permissions.py` | `require_roles(*roles)` dependency factory for RBAC           |
+| `app/core/exceptions.py`  | `UnauthorizedError`, `ForbiddenError`, etc.                 |
+| `app/models/`             | SQLAlchemy ORM models — one file per entity                    |
+| `app/schemas/`            | Pydantic request/response schemas — one file per entity        |
+| `app/routers/`            | One router per resource                                         |
+| `app/services/`           | Business logic (e.g.,`auth_service.py`)                       |
+| `app/storage/`            | `StorageBackend` abstract + `local.py` / `supabase.py`    |
 
 ---
 
@@ -58,6 +58,7 @@ pytest tests/test_auth.py       # single file
 `require_roles(*roles)` in `core/permissions.py` is a FastAPI dependency factory.
 
 **Roles** (UserRole enum in `models/user.py`):
+
 - `admin`, `teacher`, `student`
 - `is_home_teacher=True` — flag on **teacher** users (not a separate role)
 - `is_class_monitor=True` — flag on **student** users (not a separate role)
@@ -71,6 +72,7 @@ pytest tests/test_auth.py       # single file
 `behavior_log`, `class_schedule`, `notification`
 
 Key relationship:
+
 ```
 User → Enrollment → Class
 User → ClassSubject (Class × Subject × teacher)
@@ -135,6 +137,7 @@ Fixtures: `client` (FastAPI `TestClient`), `db` (SQLAlchemy session).
 Test files: `test_auth.py`, `test_rbac.py`, `test_business.py`
 
 **Known issues**:
+
 - bcrypt 5.x breaks passlib — pin bcrypt to `<4` in requirements if tests fail on password hashing
 - Naive datetime comparison in submissions — use timezone-aware datetimes when checking deadlines
 
