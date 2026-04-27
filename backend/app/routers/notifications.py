@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from app.dependencies import get_db, get_current_user
 from app.models.user import User, UserRole
-from app.models.notification import Notification
+from app.models.class_subject import ClassSubject
+from app.models.enrollment import Enrollment
+from app.models.notification import Notification, NotificationType
 from app.schemas.notification import NotificationCreate, NotificationRead
 from app.core.permissions import require_roles
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ForbiddenError
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -79,6 +82,49 @@ def mark_all_as_read(
     ).update({"is_read": True})
     db.commit()
     return {"message": "All notifications marked as read"}
+
+
+class BroadcastRequest(BaseModel):
+    class_subject_id: int
+    title: str
+    message: str
+
+
+@router.post(
+    "/broadcast",
+    dependencies=[Depends(require_roles(UserRole.teacher))],
+)
+def broadcast_to_class(
+    data: BroadcastRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send a notification to all students enrolled in the teacher's class subject."""
+    cs = db.query(ClassSubject).filter(ClassSubject.id == data.class_subject_id).first()
+    if not cs:
+        raise NotFoundError("Class subject not found")
+    if cs.teacher_id != current_user.id:
+        raise ForbiddenError("You do not teach this class subject")
+
+    enrolled_ids = [
+        e.student_id
+        for e in db.query(Enrollment).filter(Enrollment.class_id == cs.class_id).all()
+    ]
+    if not enrolled_ids:
+        return {"sent": 0}
+
+    db.bulk_save_objects([
+        Notification(
+            user_id=sid,
+            title=data.title,
+            message=data.message,
+            type=NotificationType.announcement,
+            sender=current_user.full_name,
+        )
+        for sid in enrolled_ids
+    ])
+    db.commit()
+    return {"sent": len(enrolled_ids)}
 
 
 @router.delete("/{notification_id}")

@@ -4,6 +4,7 @@ from app.dependencies import get_db, get_current_user
 from app.models.user import User, UserRole
 from app.models.announcement import Announcement, AnnouncementTarget
 from app.models.enrollment import Enrollment
+from app.models.notification import Notification, NotificationType
 from app.schemas.announcement import AnnouncementCreate, AnnouncementRead, AnnouncementUpdate
 from app.core.permissions import require_roles
 from app.core.exceptions import NotFoundError
@@ -84,6 +85,33 @@ def create_announcement(
     db.add(obj)
     db.commit()
     db.refresh(obj)
+
+    # Fan-out a Notification to every targeted user so they see it in their feed
+    target_q = db.query(User).filter(User.id != current_user.id)
+    if data.target == AnnouncementTarget.teachers:
+        target_q = target_q.filter(User.role == UserRole.teacher)
+    elif data.target == AnnouncementTarget.students:
+        target_q = target_q.filter(User.role == UserRole.student)
+    elif data.class_id:
+        enrolled_ids = [
+            e.student_id
+            for e in db.query(Enrollment).filter(Enrollment.class_id == data.class_id).all()
+        ]
+        target_q = target_q.filter(User.id.in_(enrolled_ids))
+    # else target == "all": send to everyone except admin author
+
+    db.bulk_save_objects([
+        Notification(
+            user_id=u.id,
+            title=data.title,
+            message=data.body,
+            type=NotificationType.announcement,
+            sender=current_user.full_name,
+        )
+        for u in target_q.all()
+    ])
+    db.commit()
+
     # Re-query with joins for the response
     return (
         db.query(Announcement)

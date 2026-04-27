@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Plus, Trash2, Send, AlertCircle, X, Users, Pencil } from "lucide-react";
+import { Loader2, Plus, Trash2, Send, AlertCircle, X, Users, Pencil, Megaphone } from "lucide-react";
 import { assignmentsApi, gradeCategoriesApi } from "@/lib/api";
+import { notificationsApi } from "@/lib/api/notifications";
 import { Assignment, GradeCategory } from "@/types/school.types";
 
 interface NewAssignmentForm {
@@ -71,6 +72,35 @@ export default function TeacherSubjectPage() {
 
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const [announceOpen, setAnnounceOpen] = useState(false);
+  const [announceForm, setAnnounceForm] = useState({ title: '', message: '' });
+  const [announceSending, setAnnounceSending] = useState(false);
+  const [announceToast, setAnnounceToast] = useState<string | null>(null);
+
+  const showAnnounceToast = (msg: string) => {
+    setAnnounceToast(msg);
+    setTimeout(() => setAnnounceToast(null), 3500);
+  };
+
+  async function handleBroadcast() {
+    if (!announceForm.title.trim() || !announceForm.message.trim()) return;
+    setAnnounceSending(true);
+    try {
+      const res = await notificationsApi.broadcast({
+        class_subject_id: subjectId,
+        title: announceForm.title.trim(),
+        message: announceForm.message.trim(),
+      });
+      setAnnounceOpen(false);
+      setAnnounceForm({ title: '', message: '' });
+      showAnnounceToast(`Announcement sent to ${res.sent} student${res.sent !== 1 ? 's' : ''}`);
+    } catch {
+      showAnnounceToast('Failed to send announcement');
+    } finally {
+      setAnnounceSending(false);
+    }
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -222,15 +252,24 @@ export default function TeacherSubjectPage() {
             {assignments.length} assignment{assignments.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        {!showForm && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setFormError(null); setShowForm(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+            onClick={() => setAnnounceOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
           >
-            <Plus className="h-4 w-4" />
-            New Assignment
+            <Megaphone className="h-4 w-4" />
+            Announce
           </button>
-        )}
+          {!showForm && (
+            <button
+              onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setFormError(null); setShowForm(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              New Assignment
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Create form */}
@@ -541,6 +580,69 @@ export default function TeacherSubjectPage() {
           </div>
         )}
       </div>
+
+      {/* Announce Modal */}
+      {announceOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Megaphone className="h-5 w-5 text-indigo-600" />
+                Announce to Class
+              </h2>
+              <button onClick={() => setAnnounceOpen(false)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Title</label>
+                <input
+                  type="text"
+                  value={announceForm.title}
+                  onChange={e => setAnnounceForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g. Exam next Monday"
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Message</label>
+                <textarea
+                  value={announceForm.message}
+                  onChange={e => setAnnounceForm(prev => ({ ...prev, message: e.target.value }))}
+                  placeholder="Write your announcement here..."
+                  rows={4}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex justify-end gap-3">
+              <button
+                onClick={() => setAnnounceOpen(false)}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBroadcast}
+                disabled={!announceForm.title.trim() || !announceForm.message.trim() || announceSending}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors"
+              >
+                {announceSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Send to All Students
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {announceToast && (
+        <div className="fixed bottom-6 right-6 z-[60] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2">
+          <Megaphone className="w-4 h-4 text-indigo-400" />
+          <span className="text-sm font-bold">{announceToast}</span>
+        </div>
+      )}
     </div>
   );
 }

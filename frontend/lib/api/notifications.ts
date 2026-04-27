@@ -36,4 +36,7 @@ export const notificationsApi = {
 
   delete: (id: number) =>
     client.delete(`/notifications/${id}`),
+
+  broadcast: (data: { class_subject_id: number; title: string; message: string }) =>
+    client.post<{ sent: number }>("/notifications/broadcast", data),
 };
