@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from app.dependencies import get_db, get_current_user
 from app.models.user import UserRole, User
 from app.models.assignment import Assignment, AssignmentStatus
+from app.models.class_subject import ClassSubject
+from app.models.notification import Notification, NotificationType
 from app.models.submission import AssignmentSubmission
 from app.models.submission_telemetry import SubmissionTelemetry
 from app.schemas.submission import SubmissionCreate, SubmissionRead
@@ -54,6 +56,21 @@ def create_submission(data: SubmissionCreate, db: Session = Depends(get_db),
     db.add(obj)
     db.commit()
     db.refresh(obj)
+
+    # Notify the teacher who owns this class subject
+    cs = db.query(ClassSubject).filter(ClassSubject.id == assignment.class_subject_id).first()
+    if cs and cs.teacher_id:
+        late_tag = " (late)" if is_late else ""
+        notif = Notification(
+            user_id=cs.teacher_id,
+            title=f"New submission: {assignment.title}",
+            message=f"{current_user.full_name} submitted \"{assignment.title}\"{late_tag}.",
+            type=NotificationType.assignment,
+            sender=current_user.full_name,
+        )
+        db.add(notif)
+        db.commit()
+
     # Reload with files (empty at creation time, but keeps response consistent)
     obj = db.query(AssignmentSubmission).options(
         joinedload(AssignmentSubmission.files)
