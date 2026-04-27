@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   MessageSquare,
+  Zap,
 } from 'lucide-react';
 import { assignmentsApi, submissionsApi, gradesApi } from '@/lib/api';
 import { Grade } from '@/lib/api/grades';
@@ -43,6 +44,21 @@ export default function TeacherQuizDetailPage() {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [publishing, setPublishing] = useState(false);
+
+  const handlePublish = async () => {
+    if (!quiz) return;
+    setPublishing(true);
+    try {
+      const updated = await assignmentsApi.publish(quiz.id);
+      setQuiz(updated);
+    } catch {
+      alert('Failed to publish quiz. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   // grading state: which submission is being graded
   const [gradingId, setGradingId] = useState<number | null>(null);
@@ -166,9 +182,19 @@ export default function TeacherQuizDetailPage() {
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h1 className="text-2xl font-bold text-slate-900">{quiz.title}</h1>
               <StatusBadge status={quiz.status} />
+              {quiz.status === 'draft' && (
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg disabled:opacity-60 transition-colors"
+                >
+                  {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                  Publish
+                </button>
+              )}
             </div>
             {quiz.description && (
               <p className="text-slate-500 text-sm mt-1">{quiz.description}</p>
