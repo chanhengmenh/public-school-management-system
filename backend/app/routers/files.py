@@ -45,10 +45,14 @@ async def upload_file(
             raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed types: {', '.join(sorted(ALLOWED_TYPES))}")
 
         backend = _get_storage_backend()
-        content = await file.read()
-
-        if len(content) > MAX_FILE_SIZE:
-            raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB")
+        chunks = []
+        received = 0
+        while chunk := await file.read(1024 * 256):  # 256 KB chunks
+            received += len(chunk)
+            if received > MAX_FILE_SIZE:
+                raise HTTPException(status_code=413, detail="File too large. Maximum size is 20 MB")
+            chunks.append(chunk)
+        content = b"".join(chunks)
 
         stored_path = await backend.save(content, file.filename or "upload", resource_type, resource_id, file.content_type)
 
