@@ -38,6 +38,7 @@ function getNavLinks(role: string | undefined, isClassMonitor: boolean, isHomeTe
         if (isHomeTeacher) {
             main.push({ name: 'Students', href: '/teacher/students', icon: Users });
         }
+        main.push({ name: 'Notifications', href: '/teacher/notifications', icon: Bell });
         return {
             main,
             account: [{ name: 'Settings', href: '/teacher/settings', icon: Settings }],
@@ -83,7 +84,7 @@ export default function MainSidebar({ role }: MainSidebarProps) {
     const effectiveRole = role ?? user?.role;
 
     useEffect(() => {
-        if (effectiveRole !== 'student') return;
+        if (effectiveRole !== 'student' && effectiveRole !== 'teacher') return;
         const fetchCount = async () => {
             try {
                 const data = await notificationsApi.unreadCount();
@@ -112,7 +113,7 @@ export default function MainSidebar({ role }: MainSidebarProps) {
         return links.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/teacher' && item.href !== '/student' && item.href !== '/admin' && pathname.startsWith(item.href));
             const Icon = item.icon;
-            const liveCount = item.href === '/student/notifications' ? unreadCount : 0;
+            const liveCount = (item.href === '/student/notifications' || item.href === '/teacher/notifications') ? unreadCount : 0;
 
             return (
                 <Link
