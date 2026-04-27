@@ -722,7 +722,7 @@ export default function AssignmentDetailPage() {
                                     <span className="text-orange-500 underline">browse</span>
                                 </p>
                                 <p className="text-xs text-slate-400 mt-1">
-                                    PDF, Word, Excel, JPG, PNG, GIF, TXT
+                                    PDF, Word, Excel, JPG, PNG, GIF, TXT (max 20 MB each)
                                 </p>
                             </div>
 

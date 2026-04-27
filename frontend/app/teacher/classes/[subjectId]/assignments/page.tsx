@@ -247,6 +247,7 @@ export default function TeacherAssignmentsPage() {
                                     <label className="border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 p-6 flex flex-col items-center justify-center text-center hover:bg-slate-100 hover:border-slate-300 transition-colors cursor-pointer group">
                                         <Upload className="w-5 h-5 text-slate-400 mb-2 group-hover:text-blue-500 transition-colors" />
                                         <span className="text-sm font-medium text-slate-500">Drag & drop files here or click to browse</span>
+                                        <span className="text-xs text-slate-400 mt-1">Max 20 MB</span>
                                         <input
                                             type="file"
                                             className="hidden"
